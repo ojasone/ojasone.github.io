@@ -2023,19 +2023,18 @@ function generateExampleDataset() {
     return [fmt(d), amt, 0, `Received ${ref} – advance`, utr, pty];
   });
 
-  // Build client raw rows (header + 200 data rows)
-  const cHeader  = ['Date', 'Debit Amount', 'Credit Amount', 'Narration', 'Invoice No', 'Bank'];
-  const cDataRows = [...allPairs.map(p => p.c), ...uClient];
+  // Helper: DD/MM/YYYY → sortable integer YYYYMMDD
+  const dateKey = s => { const [d,m,y] = s.split('/'); return +y * 10000 + +m * 100 + +d; };
+  const byDate  = (a, b) => dateKey(a[0]) - dateKey(b[0]);
+
+  // Build client raw rows (header + 200 data rows sorted by date ascending)
+  const cHeader   = ['Date', 'Debit Amount', 'Credit Amount', 'Narration', 'Invoice No', 'Bank'];
+  const cDataRows = [...allPairs.map(p => p.c), ...uClient].sort(byDate);
   const clientRaw = [cHeader, ...cDataRows];
 
-  // Build supplier raw rows (header + 200 data rows, shuffled)
+  // Build supplier raw rows (header + 200 data rows sorted by date ascending)
   const sHeader   = ['Date', 'Credit Amount', 'Debit Amount', 'Narration', 'UTR Reference', 'Received From'];
-  const sDataRows = [...allPairs.map(p => p.s), ...uSupplier];
-  // Fisher-Yates shuffle
-  for (let i = sDataRows.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [sDataRows[i], sDataRows[j]] = [sDataRows[j], sDataRows[i]];
-  }
+  const sDataRows = [...allPairs.map(p => p.s), ...uSupplier].sort(byDate);
   const supplierRaw = [sHeader, ...sDataRows];
 
   return { clientRaw, supplierRaw };
