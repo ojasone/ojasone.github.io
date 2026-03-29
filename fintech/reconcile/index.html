@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 
 <style>
 /* ── Reset & Base ─────────────────────────────────────────── */
@@ -175,6 +176,10 @@ main { padding: 48px 32px; width: 100%; box-sizing: border-box; }
 }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tbody tr:hover td { background: rgba(99,102,241,.06); }
+.col-num {
+  display: block; font-size: 9.5px; font-weight: 500;
+  color: rgba(165,180,252,.35); letter-spacing: .2px; margin-top: 2px;
+}
 .row-num { color: #2d3a55 !important; font-size: 11px !important; }
 
 /* ── Config Panel ────────────────────────────────────────── */
@@ -516,6 +521,7 @@ html[data-theme="light"] .preview-header { color: #1e293b; }
 html[data-theme="light"] .preview-count  { color: #64748b; }
 html[data-theme="light"] .table-scroll   { border-color: rgba(0,0,0,.07); }
 html[data-theme="light"] .data-table thead th { background: #f1f5f9; color: #374151; border-bottom-color: rgba(0,0,0,.1); }
+html[data-theme="light"] .col-num { color: rgba(55,65,81,.3); }
 html[data-theme="light"] .data-table tbody td { color: #374151; border-bottom-color: rgba(0,0,0,.05); }
 html[data-theme="light"] .data-table tbody tr:hover td { background: #f8fafc; }
 html[data-theme="light"] .data-table .row-num { color: #94a3b8; }
@@ -567,6 +573,29 @@ html[data-theme="light"] .ledger-table tbody tr.l-matched:hover td   { backgroun
 html[data-theme="light"] .ledger-table tbody tr.l-unmatched:hover td { background: rgba(245,158,11,.08); }
 html[data-theme="light"] .l-empty { color: #d1d5db !important; }
 
+/* ── Result Tabs ─────────────────────────────────── */
+.result-tabs {
+  display: flex; gap: 4px; margin-bottom: 28px;
+  background: rgba(255,255,255,.04); padding: 5px;
+  border-radius: 13px; width: fit-content;
+  border: 1px solid rgba(255,255,255,.06);
+}
+.result-tab {
+  padding: 9px 24px; border-radius: 9px; border: none;
+  background: transparent; color: #64748b;
+  font-size: 13px; font-weight: 600; font-family: inherit;
+  cursor: pointer; transition: all .22s; white-space: nowrap;
+}
+.result-tab.active {
+  background: linear-gradient(135deg,#4f46e5,#7c3aed);
+  color: #fff; box-shadow: 0 2px 14px rgba(79,70,229,.35);
+}
+.result-tab:hover:not(.active) { color: #e2e8f0; background: rgba(255,255,255,.06); }
+.tab-panel.tab-hidden { display: none; }
+html[data-theme="light"] .result-tabs { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.07); }
+html[data-theme="light"] .result-tab { color: #64748b; }
+html[data-theme="light"] .result-tab:hover:not(.active) { color: #1e293b; background: rgba(0,0,0,.04); }
+
 /* Footer */
 html[data-theme="light"] footer { color: #94a3b8; border-top-color: rgba(0,0,0,.06); }
 </style>
@@ -615,7 +644,7 @@ html[data-theme="light"] footer { color: #94a3b8; border-top-color: rgba(0,0,0,.
       <div class="upload-card-header">
         <span class="dot dot-blue"></span>
         <span class="upload-card-title">Client File</span>
-        <span class="upload-ext">.xlsx / .xls</span>
+        <span class="upload-ext">.xlsx / .xls / .pdf</span>
       </div>
       <div id="clientDropZone" class="drop-zone" onclick="document.getElementById('clientFileInput').click()">
         <div class="drop-icon blue-bg">
@@ -627,8 +656,8 @@ html[data-theme="light"] footer { color: #94a3b8; border-top-color: rgba(0,0,0,.
           </svg>
         </div>
         <div id="clientFileInfo">
-          <div class="drop-title">Drop your Client Excel file here</div>
-          <div class="drop-sub">or click to browse</div>
+          <div class="drop-title">Drop your Client file here</div>
+          <div class="drop-sub">Excel (.xlsx / .xls) or PDF &nbsp;·&nbsp; or click to browse</div>
         </div>
       </div>
       <div class="row-start-bar">
@@ -641,7 +670,7 @@ html[data-theme="light"] footer { color: #94a3b8; border-top-color: rgba(0,0,0,.
           <input id="clientStartRow" class="row-start-input" type="number" min="1" value="2" />
         </div>
       </div>
-      <input type="file" id="clientFileInput" accept=".xlsx,.xls" style="display:none" />
+      <input type="file" id="clientFileInput" accept=".xlsx,.xls,.pdf" style="display:none" />
     </div>
 
     <!-- Supplier -->
@@ -649,7 +678,7 @@ html[data-theme="light"] footer { color: #94a3b8; border-top-color: rgba(0,0,0,.
       <div class="upload-card-header">
         <span class="dot dot-green"></span>
         <span class="upload-card-title">Supplier File</span>
-        <span class="upload-ext">.xlsx / .xls</span>
+        <span class="upload-ext">.xlsx / .xls / .pdf</span>
       </div>
       <div id="supplierDropZone" class="drop-zone supplier-zone" onclick="document.getElementById('supplierFileInput').click()">
         <div class="drop-icon green-bg">
@@ -661,8 +690,8 @@ html[data-theme="light"] footer { color: #94a3b8; border-top-color: rgba(0,0,0,.
           </svg>
         </div>
         <div id="supplierFileInfo">
-          <div class="drop-title">Drop your Supplier Excel file here</div>
-          <div class="drop-sub">or click to browse</div>
+          <div class="drop-title">Drop your Supplier file here</div>
+          <div class="drop-sub">Excel (.xlsx / .xls) or PDF &nbsp;·&nbsp; or click to browse</div>
         </div>
       </div>
       <div class="row-start-bar">
@@ -675,7 +704,7 @@ html[data-theme="light"] footer { color: #94a3b8; border-top-color: rgba(0,0,0,.
           <input id="supplierStartRow" class="row-start-input" type="number" min="1" value="2" />
         </div>
       </div>
-      <input type="file" id="supplierFileInput" accept=".xlsx,.xls" style="display:none" />
+      <input type="file" id="supplierFileInput" accept=".xlsx,.xls,.pdf" style="display:none" />
     </div>
 
   </div>
@@ -806,50 +835,89 @@ html[data-theme="light"] footer { color: #94a3b8; border-top-color: rgba(0,0,0,.
   <!-- ─── Results ─── -->
   <section id="resultsSection" class="hidden mt-10 animate-in">
 
-    <!-- Summary banner -->
-    <div id="summaryBanner" class="summary-banner"></div>
-
-    <!-- Toggle buttons -->
-    <div class="toggle-row">
-      <button id="showLedgerBtn" class="btn-toggle" style="border-color:rgba(99,102,241,.3);color:#818cf8;">
-        📊 Ledger View
-      </button>
-      <button id="showUnmatchedClientBtn" class="btn-toggle">Show Unmatched Client Rows</button>
-      <button id="showUnmatchedSupplierBtn" class="btn-toggle">Show Unmatched Supplier Rows</button>
+    <!-- Tab bar -->
+    <div class="result-tabs">
+      <button id="tabCSBtn" class="result-tab active">↓ Client → Supplier</button>
+      <button id="tabSCBtn" class="result-tab">↑ Supplier → Client</button>
     </div>
 
-    <!-- Ledger View -->
-    <div id="ledgerSection" class="card ledger-card hidden animate-in">
-      <div class="ledger-title">Ledger View — All Client Rows in Original Order</div>
-      <div class="ledger-subtitle">Indigo left border = Matched &nbsp;·&nbsp; Amber left border = No Match &nbsp;·&nbsp; Supplier columns show the matched entry</div>
-      <div class="ledger-scroll" id="ledgerScroll"></div>
-    </div>
+    <!-- ── C→S Panel ── -->
+    <div id="panelCS" class="tab-panel">
 
-    <div id="unmatchedClientSection" class="card unmatched-card hidden animate-in">
-      <div class="unmatched-title">Unmatched Client Rows</div>
-      <div class="table-scroll"><table id="unmatchedClientTable" class="data-table"></table></div>
-    </div>
+      <div id="summaryBanner" class="summary-banner"></div>
 
-    <div id="unmatchedSupplierSection" class="card unmatched-card hidden animate-in">
-      <div class="unmatched-title">Unmatched Supplier Rows</div>
-      <div class="table-scroll"><table id="unmatchedSupplierTable" class="data-table"></table></div>
-    </div>
+      <div class="toggle-row">
+        <button id="showLedgerBtn" class="btn-toggle" style="border-color:rgba(99,102,241,.3);color:#818cf8;">📊 Ledger View</button>
+        <button id="showUnmatchedClientBtn" class="btn-toggle">Show Unmatched Client Rows</button>
+        <button id="showUnmatchedSupplierBtn" class="btn-toggle">Show Unmatched Supplier Rows</button>
+      </div>
 
-    <!-- Matched pairs heading -->
-    <div class="section-title mt-10">
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
-        <path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Matched Pairs
-    </div>
+      <div id="ledgerSection" class="card ledger-card hidden animate-in">
+        <div class="ledger-title">Ledger View — All Client Rows in Original Order</div>
+        <div class="ledger-subtitle">Indigo left border = Matched &nbsp;·&nbsp; Amber left border = No Match &nbsp;·&nbsp; Supplier columns show the matched entry</div>
+        <div class="ledger-scroll" id="ledgerScroll"></div>
+      </div>
 
-    <div id="matchCards" class="match-cards"></div>
+      <div id="unmatchedClientSection" class="card unmatched-card hidden animate-in">
+        <div class="unmatched-title">Unmatched Client Rows</div>
+        <div class="table-scroll"><table id="unmatchedClientTable" class="data-table"></table></div>
+      </div>
+      <div id="unmatchedSupplierSection" class="card unmatched-card hidden animate-in">
+        <div class="unmatched-title">Unmatched Supplier Rows</div>
+        <div class="table-scroll"><table id="unmatchedSupplierTable" class="data-table"></table></div>
+      </div>
 
-    <div id="noResults" class="no-results hidden">
-      <div class="emoji">🔍</div>
-      <p>No matches found with the current settings.</p>
-      <small>Try increasing the Amount or Date tolerance.</small>
-    </div>
+      <div class="section-title mt-10">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Matched Pairs
+      </div>
+      <div id="matchCards" class="match-cards"></div>
+      <div id="noResults" class="no-results hidden">
+        <div class="emoji">🔍</div>
+        <p>No matches found with the current settings.</p>
+        <small>Try increasing the Amount or Date tolerance.</small>
+      </div>
+
+    </div><!-- /panelCS -->
+
+    <!-- ── S→C Panel ── -->
+    <div id="panelSC" class="tab-panel tab-hidden">
+
+      <div id="summaryBannerSC" class="summary-banner"></div>
+
+      <div class="toggle-row">
+        <button id="showLedgerBtnSC" class="btn-toggle" style="border-color:rgba(99,102,241,.3);color:#818cf8;">📊 Ledger View</button>
+        <button id="showUnmatchedSupplierBtnSC" class="btn-toggle">Show Unmatched Supplier Rows</button>
+        <button id="showUnmatchedClientBtnSC" class="btn-toggle">Show Unmatched Client Rows</button>
+      </div>
+
+      <div id="ledgerSectionSC" class="card ledger-card hidden animate-in">
+        <div class="ledger-title">Ledger View — All Supplier Rows in Original Order</div>
+        <div class="ledger-subtitle">Indigo left border = Matched &nbsp;·&nbsp; Amber left border = No Match &nbsp;·&nbsp; Client columns show the matched entry</div>
+        <div class="ledger-scroll" id="ledgerScrollSC"></div>
+      </div>
+
+      <div id="unmatchedSupplierSectionSC" class="card unmatched-card hidden animate-in">
+        <div class="unmatched-title">Unmatched Supplier Rows</div>
+        <div class="table-scroll"><table id="unmatchedSupplierTableSC" class="data-table"></table></div>
+      </div>
+      <div id="unmatchedClientSectionSC" class="card unmatched-card hidden animate-in">
+        <div class="unmatched-title">Unmatched Client Rows</div>
+        <div class="table-scroll"><table id="unmatchedClientTableSC" class="data-table"></table></div>
+      </div>
+
+      <div class="section-title mt-10">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" stroke="#34d399" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Matched Pairs
+      </div>
+      <div id="matchCardsSC" class="match-cards"></div>
+      <div id="noResultsSC" class="no-results hidden">
+        <div class="emoji">🔍</div>
+        <p>No matches found with the current settings.</p>
+        <small>Try increasing the Amount or Date tolerance.</small>
+      </div>
+
+    </div><!-- /panelSC -->
 
   </section>
 
@@ -860,12 +928,14 @@ html[data-theme="light"] footer { color: #94a3b8; border-top-color: rgba(0,0,0,.
 <!-- ═══════════════════ JAVASCRIPT ════════════════ -->
 <script>
 /* ── State ── */
-let clientRawRows = null;   // all rows straight from xlsx (no slicing)
+let clientRawRows = null;
 let supplierRawRows = null;
-let clientData = null;      // { headers, rows } after sliceData()
+let clientData = null;
 let supplierData = null;
-let lastMatches = null;     // saved after each reconcile for lazy ledger build
-let lastCfg    = null;
+let lastMatches   = null;   // C→S
+let lastCfg       = null;
+let lastMatchesSC = null;   // S→C
+let lastCfgSC     = null;
 
 /* ── Theme ── */
 // Restore theme before first paint (button not in DOM yet — only set attribute)
@@ -1004,7 +1074,7 @@ function daysDiff(a, b) {
   return Math.abs((a.getTime() - b.getTime()) / 86400000);
 }
 
-/* ── Excel parsing — returns ALL rows (no slicing) ── */
+/* ── Excel parsing ── returns all rows (no slicing) ── */
 function parseExcel(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1013,7 +1083,6 @@ function parseExcel(file) {
         const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: false });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-        // Keep all non-blank rows; caller will slice based on startRow
         resolve(raw.filter(r => r.some(c => c !== '' && c !== null && c !== undefined)));
       } catch(err) { reject(err); }
     };
@@ -1022,10 +1091,87 @@ function parseExcel(file) {
   });
 }
 
+/* ── PDF parsing ── extracts tabular data using position-based column bucketing ── */
+async function parsePDF(file) {
+  // Initialise PDF.js worker from CDN on first use
+  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  }
+
+  const bytes = await file.arrayBuffer();
+  const pdf   = await pdfjsLib.getDocument({ data: bytes, verbosity: 0 }).promise;
+
+  // 1. Collect all text items from every page, converting Y to top-down
+  const allItems = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page       = await pdf.getPage(p);
+    const viewport   = page.getViewport({ scale: 1 });
+    const tc         = await page.getTextContent();
+    const pageOffset = (p - 1) * 1e6; // ensure pages don't interleave by Y
+    tc.items.forEach(item => {
+      const str = (item.str || '').trim();
+      if (!str) return;
+      allItems.push({
+        text: str,
+        x: item.transform[4],
+        y: pageOffset + (viewport.height - item.transform[5]) // top-down
+      });
+    });
+  }
+  if (allItems.length === 0) throw new Error('No text found in PDF.');
+
+  // 2. Sort top-to-bottom then left-to-right
+  allItems.sort((a, b) => a.y - b.y || a.x - b.x);
+
+  // 3. Group into lines by Y-coordinate proximity
+  const Y_TOL = 4;
+  const lines = [];
+  let line = [allItems[0]];
+  for (let i = 1; i < allItems.length; i++) {
+    if (Math.abs(allItems[i].y - line[0].y) <= Y_TOL) {
+      line.push(allItems[i]);
+    } else {
+      lines.push(line);
+      line = [allItems[i]];
+    }
+  }
+  lines.push(line);
+
+  // 4. Determine column X-centre buckets using gap clustering across all items
+  const allX = allItems.map(i => i.x).sort((a, b) => a - b);
+  const COL_GAP = 20; // minimum pixel gap to start a new column
+  const colCenters = [];
+  let gSum = allX[0], gCnt = 1;
+  for (let i = 1; i < allX.length; i++) {
+    if (allX[i] - allX[i - 1] > COL_GAP) {
+      colCenters.push(gSum / gCnt);
+      gSum = allX[i]; gCnt = 1;
+    } else {
+      gSum += allX[i]; gCnt++;
+    }
+  }
+  colCenters.push(gSum / gCnt);
+  const numCols = colCenters.length;
+
+  // 5. Assign each item in each line to its nearest column bucket, build 2D rows
+  const rows = lines.map(ln => {
+    const row = new Array(numCols).fill('');
+    ln.forEach(item => {
+      let minD = Infinity, col = 0;
+      colCenters.forEach((cx, ci) => { const d = Math.abs(item.x - cx); if (d < minD) { minD = d; col = ci; } });
+      row[col] = row[col] ? row[col] + ' ' + item.text : item.text;
+    });
+    return row;
+  }).filter(row => row.some(c => c.trim()));
+
+  return rows;
+}
+
 /* ── Table renderer ── dateColIdx: 0-based index of the date column (-1 to skip) ── */
 function renderTable(tableEl, data, dateColIdx = -1) {
   let h = '<thead><tr><th style="color:#2d3a55;">#</th>';
-  data.headers.forEach(hd => { h += `<th>${esc(hd)}</th>`; });
+  data.headers.forEach((hd, ci) => { h += `<th>${esc(hd)}<span class="col-num">col ${ci + 1}</span></th>`; });
   h += '</tr></thead><tbody>';
   data.rows.forEach((row, i) => {
     h += `<tr><td class="row-num">${i+1}</td>`;
@@ -1054,7 +1200,8 @@ async function handleFile(file, type) {
   zone.classList.add('has-file');
   info.innerHTML = `<div style="display:flex;align-items:center;gap:10px;justify-content:center;"><div class="spinner"></div><span style="font-size:13px;color:#94a3b8;">Parsing ${esc(file.name)}…</span></div>`;
   try {
-    const allRows = await parseExcel(file);
+    const isPDF = file.name.toLowerCase().endsWith('.pdf');
+    const allRows = isPDF ? await parsePDF(file) : await parseExcel(file);
     if (type === 'client') clientRawRows = allRows; else supplierRawRows = allRows;
     const headerRow  = parseInt($(type+'HeaderRow').value);
     const startRow   = parseInt($(type+'StartRow').value) || 2;
@@ -1102,6 +1249,7 @@ function checkShowConfig() {
 /* ── Reconcile ── */
 $('reconcileBtn').addEventListener('click', () => {
   if (!clientData || !supplierData) { alert('Please upload both files first.'); return; }
+  saveSettings(true);   // persist current field values BEFORE reading them in runReconcile
   $('reconcileBtn').disabled = true;
   $('reconcileBtnContent').innerHTML = '<div class="spinner" style="display:inline-block;"></div> Reconciling…';
   setTimeout(runReconcile, 60);
@@ -1120,16 +1268,35 @@ function runReconcile() {
       parseInt($('supplierStartRow').value) || 2);
   }
 
-  const cfg = {
-    cDate:  +$('clientDateCol').value   - 1,
-    cDebit: +$('clientDebitCol').value  - 1,
-    cCredit:+$('clientCreditCol').value - 1,
-    sDate:  +$('supplierDateCol').value  - 1,
-    sCredit:+$('supplierCreditCol').value- 1,
-    sDebit: +$('supplierDebitCol').value - 1,
-    amtTol: parseFloat($('amountTolerance').value) || 0,
-    dateTol:parseFloat($('dateTolerance').value),
+  const readCol = id => {
+    const v = parseInt($( id ).value);
+    return isNaN(v) || v < 1 ? 0 : v - 1;  // convert 1-based UI to 0-based index; 0 means column 1
   };
+
+  const cfg = {
+    cDate:   readCol('clientDateCol'),
+    cDebit:  readCol('clientDebitCol'),
+    cCredit: readCol('clientCreditCol'),
+    sDate:   readCol('supplierDateCol'),
+    sCredit: readCol('supplierCreditCol'),
+    sDebit:  readCol('supplierDebitCol'),
+    amtTol:  parseFloat($('amountTolerance').value) || 0,
+    dateTol: parseFloat($('dateTolerance').value)   || 0,
+  };
+
+  // Pre-flight: warn if required columns look wrong
+  const cHeaders = clientData.headers, sHeaders = supplierData.headers;
+  const warn = [];
+  if (cfg.cDebit  >= cHeaders.length) warn.push(`Client Debit col (${cfg.cDebit+1}) exceeds ${cHeaders.length} columns`);
+  if (cfg.sCredit >= sHeaders.length) warn.push(`Supplier Credit col (${cfg.sCredit+1}) exceeds ${sHeaders.length} columns`);
+  if (warn.length) { alert('⚠️ Configuration issue:\n\n' + warn.join('\n') + '\n\nPlease check your column numbers in the Reconciliation Configuration.'); $('reconcileBtn').disabled = false; $('reconcileBtnContent').innerHTML = 'Reconcile Now'; return; }
+
+  console.log('[Reconcile] cfg =', cfg,
+    '\n  clientData rows:', clientData.rows.length, 'columns:', cHeaders,
+    '\n  supplierData rows:', supplierData.rows.length, 'columns:', sHeaders,
+    '\n  sample cDebit values:', clientData.rows.slice(0,3).map(r => r[cfg.cDebit]),
+    '\n  sample sCredit values:', supplierData.rows.slice(0,3).map(r => r[cfg.sCredit])
+  );
 
   const clientRows = clientData.rows, supplierRows = supplierData.rows;
   const supplierUsed = new Set(), clientMatched = new Set();
@@ -1137,14 +1304,14 @@ function runReconcile() {
 
   clientRows.forEach((cRow, ci) => {
     const cDebit = parseAmount(cRow[cfg.cDebit]);
-    if (cDebit === null || cDebit <= 0) return;
+    if (cDebit === null || cDebit <= 0) return;   // skip rows with no positive debit
     const cDate = parseDate(cRow[cfg.cDate]);
     let bestMatch = null, bestDiff = Infinity;
 
     supplierRows.forEach((sRow, si) => {
       if (supplierUsed.has(si)) return;
       const sCredit = parseAmount(sRow[cfg.sCredit]);
-      if (sCredit === null || sCredit <= 0) return;
+      if (sCredit === null || sCredit <= 0) return;  // skip rows with no positive credit
       const amtDiff = Math.abs(cDebit - sCredit);
       if (amtDiff > cfg.amtTol) return;
       if (cfg.dateTol > 0) {
@@ -1165,6 +1332,10 @@ function runReconcile() {
   const unmatchedSupplier = supplierRows.filter((_, i) => !supplierUsed.has(i));
 
   renderResults(matches, unmatchedClient, unmatchedSupplier, cfg);
+
+  // Also run S→C reconciliation (supplier as anchor)
+  const scResult = runReconcileSC(cfg);
+  renderResultsSC(scResult.matches, scResult.unmatchedSupplier, scResult.unmatchedClient, cfg);
 
   $('reconcileBtn').disabled = false;
   $('reconcileBtnContent').innerHTML = `<svg width="18" height="18" fill="none" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;"><path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5" stroke="white" stroke-width="2.2" stroke-linecap="round"/><path d="M15 21l6-6m0 6l-6-6" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Reconcile Now`;
@@ -1394,7 +1565,21 @@ $('showLedgerBtn').addEventListener('click', () => {
   }
 });
 
-/* ── Toggle unmatched ── */
+/* ── Tab switcher ── */
+$('tabCSBtn').addEventListener('click', () => {
+  $('panelCS').classList.remove('tab-hidden');
+  $('panelSC').classList.add('tab-hidden');
+  $('tabCSBtn').classList.add('active');
+  $('tabSCBtn').classList.remove('active');
+});
+$('tabSCBtn').addEventListener('click', () => {
+  $('panelSC').classList.remove('tab-hidden');
+  $('panelCS').classList.add('tab-hidden');
+  $('tabSCBtn').classList.add('active');
+  $('tabCSBtn').classList.remove('active');
+});
+
+/* ── Toggle unmatched (C→S) ── */
 $('showUnmatchedClientBtn').addEventListener('click', () => {
   const s = $('unmatchedClientSection'); s.classList.toggle('hidden');
   $('showUnmatchedClientBtn').textContent = s.classList.contains('hidden') ? 'Show Unmatched Client Rows' : 'Hide Unmatched Client Rows';
@@ -1404,23 +1589,58 @@ $('showUnmatchedSupplierBtn').addEventListener('click', () => {
   $('showUnmatchedSupplierBtn').textContent = s.classList.contains('hidden') ? 'Show Unmatched Supplier Rows' : 'Hide Unmatched Supplier Rows';
 });
 
+/* ── Toggle unmatched (S→C) ── */
+$('showUnmatchedSupplierBtnSC').addEventListener('click', () => {
+  const s = $('unmatchedSupplierSectionSC'); s.classList.toggle('hidden');
+  $('showUnmatchedSupplierBtnSC').textContent = s.classList.contains('hidden') ? 'Show Unmatched Supplier Rows' : 'Hide Unmatched Supplier Rows';
+});
+$('showUnmatchedClientBtnSC').addEventListener('click', () => {
+  const s = $('unmatchedClientSectionSC'); s.classList.toggle('hidden');
+  $('showUnmatchedClientBtnSC').textContent = s.classList.contains('hidden') ? 'Show Unmatched Client Rows' : 'Hide Unmatched Client Rows';
+});
+
+/* ── Toggle Ledger (S→C) ── */
+$('showLedgerBtnSC').addEventListener('click', () => {
+  const sec = $('ledgerSectionSC');
+  const isHidden = sec.classList.contains('hidden');
+  if (isHidden) {
+    if (!$('ledgerScrollSC').innerHTML) buildLedgerViewSC();
+    sec.classList.remove('hidden');
+    $('showLedgerBtnSC').textContent = '✕ Close Ledger View';
+    setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  } else {
+    sec.classList.add('hidden');
+    $('showLedgerBtnSC').textContent = '📊 Ledger View';
+  }
+});
+
 /* ── Reset ── */
 $('resetBtn').addEventListener('click', () => {
   clientData = supplierData = clientRawRows = supplierRawRows = null;
-  lastMatches = lastCfg = null;
+  lastMatches = lastCfg = lastMatchesSC = lastCfgSC = null;
   ['previewSection','configSection','resultsSection','clientPreview','supplierPreview',
-   'unmatchedClientSection','unmatchedSupplierSection','ledgerSection'].forEach(id => $(id).classList.add('hidden'));
-  $('matchCards').innerHTML = '';
-  $('ledgerScroll').innerHTML = '';
+   'unmatchedClientSection','unmatchedSupplierSection','ledgerSection',
+   'unmatchedSupplierSectionSC','unmatchedClientSectionSC','ledgerSectionSC'
+  ].forEach(id => $(id).classList.add('hidden'));
+  $('matchCards').innerHTML   = '';
+  $('matchCardsSC').innerHTML = '';
+  $('ledgerScroll').innerHTML   = '';
+  $('ledgerScrollSC').innerHTML = '';
   $('noResults').classList.add('hidden');
+  $('noResultsSC').classList.add('hidden');
   ['clientDropZone','supplierDropZone'].forEach(id => $(id).classList.remove('has-file','dragover'));
-  $('clientFileInfo').innerHTML  = '<div class="drop-title">Drop your Client Excel file here</div><div class="drop-sub">or click to browse</div>';
-  $('supplierFileInfo').innerHTML = '<div class="drop-title">Drop your Supplier Excel file here</div><div class="drop-sub">or click to browse</div>';
-  // Reset per-file row configs to defaults (column & tolerance settings are kept)
+  $('clientFileInfo').innerHTML  = '<div class="drop-title">Drop your Client file here</div><div class="drop-sub">Excel (.xlsx / .xls) or PDF &nbsp;·&nbsp; or click to browse</div>';
+  $('supplierFileInfo').innerHTML = '<div class="drop-title">Drop your Supplier file here</div><div class="drop-sub">Excel (.xlsx / .xls) or PDF &nbsp;·&nbsp; or click to browse</div>';
   $('clientHeaderRow').value = 1;  $('clientStartRow').value = 2;
   $('supplierHeaderRow').value = 1; $('supplierStartRow').value = 2;
-  saveSettings();   // persist the reset row-config defaults
-  $('showLedgerBtn').textContent = '📊 Ledger View';
+  saveSettings();
+  $('showLedgerBtn').textContent   = '📊 Ledger View';
+  $('showLedgerBtnSC').textContent = '📊 Ledger View';
+  // Restore to C→S tab
+  $('panelCS').classList.remove('tab-hidden');
+  $('panelSC').classList.add('tab-hidden');
+  $('tabCSBtn').classList.add('active');
+  $('tabSCBtn').classList.remove('active');
   window.scrollTo({ top:0, behavior:'smooth' });
 });
 
@@ -1429,6 +1649,225 @@ $('clientHeaderRow').addEventListener('change',    () => { refreshPreview('clien
 $('clientStartRow').addEventListener('change',     () => { refreshPreview('client');   saveSettings(); });
 $('supplierHeaderRow').addEventListener('change',  () => { refreshPreview('supplier'); saveSettings(); });
 $('supplierStartRow').addEventListener('change',   () => { refreshPreview('supplier'); saveSettings(); });
+
+/* ────────────────────────────────────────────────
+   S→C RECONCILIATION ENGINE
+─────────────────────────────────────────────── */
+// Mirror of runReconcile but Supplier rows are the anchor.
+function runReconcileSC(cfg) {
+  const { sDate: sDateIdx, sCredit: sCreditIdx,
+          cDate: cDateIdx, cDebit: cDebitIdx,
+          amtTol, dateTol } = cfg;
+
+  const supplierRows = supplierData.rows;
+  const clientRows   = clientData.rows;
+  const clientUsed   = new Set();
+  const matches      = [];
+
+  supplierRows.forEach((sRow, si) => {
+    const sCreditVal = parseAmount(sRow[sCreditIdx]);
+    if (sCreditVal === null || sCreditVal <= 0) return;  // skip rows with no positive credit
+    const sDateVal = sRow[sDateIdx];
+
+    let best = null, bestScore = Infinity;
+
+    clientRows.forEach((cRow, ci) => {
+      if (clientUsed.has(ci)) return;
+      const cDebitVal = parseAmount(cRow[cDebitIdx]);
+      if (cDebitVal === null || cDebitVal <= 0) return;  // skip rows with no positive debit
+
+      const amtDiff = Math.abs(sCreditVal - cDebitVal);
+      if (amtDiff > amtTol) return;
+
+      if (dateTol > 0) {
+        const sd = parseDate(sDateVal), cd = parseDate(cRow[cDateIdx]);
+        if (sd && cd) {
+          const days = Math.abs(sd - cd) / 86400000;
+          if (days > dateTol) return;
+        }
+      }
+
+      if (amtDiff < bestScore) {
+        best = { ci, cRow, cDebit: cDebitVal, amtDiff };
+        bestScore = amtDiff;
+      }
+    });
+
+    if (best) {
+      clientUsed.add(best.ci);
+      matches.push({ si, sRow, sCredit: sCreditVal, ...best });
+    }
+  });
+
+  const unmatchedSupplier = supplierRows.filter((_, i) => !matches.some(m => m.si === i));
+  const unmatchedClient   = clientRows.filter((_, i) => !clientUsed.has(i));
+  return { matches, unmatchedSupplier, unmatchedClient };
+}
+
+function renderResultsSC(matches, unmatchedSupplier, unmatchedClient, cfg) {
+  lastMatchesSC = matches;
+  lastCfgSC     = cfg;
+  $('ledgerSectionSC').classList.add('hidden');
+  $('ledgerScrollSC').innerHTML = '';
+  $('showLedgerBtnSC').textContent = '📊 Ledger View';
+
+  const totalS = supplierData.rows.length, totalC = clientData.rows.length;
+  const pct = totalS > 0 ? Math.round(matches.length / totalS * 100) : 0;
+
+  $('summaryBannerSC').innerHTML = `
+    <div><div class="summary-stat-num" style="color:#34d399">${matches.length}</div>
+      <div class="summary-stat-label">Matched pairs</div></div>
+    <div class="sep"></div>
+    <div><div class="summary-stat-num" style="color:#f1f5f9">${totalS}</div>
+      <div class="summary-stat-label">Supplier rows</div></div>
+    <div class="sep"></div>
+    <div><div class="summary-stat-num" style="color:#f1f5f9">${totalC}</div>
+      <div class="summary-stat-label">Client rows</div></div>
+    <div class="sep"></div>
+    <div>
+      <div class="progress-row" style="margin-bottom:6px;">
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <span class="progress-pct">${pct}%</span>
+      </div>
+      <div class="summary-sub">Match rate (supplier)</div>
+    </div>
+    <div class="sep"></div>
+    <div class="summary-row">
+      <div class="summary-sub"><span class="amber">${unmatchedSupplier.length}</span> unmatched supplier rows</div>
+      <div class="summary-sub"><span class="rose">${unmatchedClient.length}</span> unmatched client rows</div>
+    </div>`;
+
+  const sDateIdx = cfg.sDate, cDateIdx = cfg.cDate;
+  buildUnmatchedTable($('unmatchedSupplierTableSC'), supplierData.headers, unmatchedSupplier, sDateIdx);
+  buildUnmatchedTable($('unmatchedClientTableSC'),   clientData.headers,   unmatchedClient,   cDateIdx);
+
+  const container = $('matchCardsSC');
+  container.innerHTML = '';
+  if (matches.length === 0) {
+    $('noResultsSC').classList.remove('hidden');
+  } else {
+    $('noResultsSC').classList.add('hidden');
+    matches.forEach((m, idx) => container.appendChild(buildMatchCardSC(m, idx)));
+  }
+}
+
+// S→C match card: Supplier on the LEFT, Client on the RIGHT
+function buildMatchCardSC(m, idx) {
+  const { si, sRow, sCredit, ci, cRow, cDebit, amtDiff } = m;
+  const diffLabel = amtDiff === 0 ? '✓ Exact Match' : `Diff: ${fmtAmount(amtDiff)}`;
+  const diffCls   = amtDiff === 0 ? 'diff-exact' : 'diff-close';
+  const cH = clientData.headers, sH = supplierData.headers;
+  const cDateIdx = parseInt($('clientDateCol').value) - 1;
+  const sDateIdx = parseInt($('supplierDateCol').value) - 1;
+
+  const div = document.createElement('div');
+  div.className = 'match-card';
+  div.style.animationDelay = `${idx * 25}ms`;
+
+  const cells = (row, dateIdx) =>
+    row.map((v, ci) => `<td>${esc(ci === dateIdx ? fmtDateCell(v) : fmtCell(v))}</td>`).join('');
+
+  div.innerHTML = `
+    <div class="match-card-accent">
+      <div class="accent-bar" style="background:linear-gradient(180deg,#059669,#34d399);"></div>
+      <div class="match-card-body">
+        <div class="match-card-header">
+          <span class="match-idx">#${idx+1}</span>
+          <span class="badge badge-supplier">SUPPLIER CREDIT</span>
+          <span class="match-arrow">→</span>
+          <span class="badge badge-client">CLIENT DEBIT</span>
+          <span class="diff-label ${diffCls}">${diffLabel}</span>
+        </div>
+        <div class="pair-grid">
+          <div class="pair-side supplier-side">
+            <div class="pair-head supplier-head">
+              <span class="dot dot-green"></span>
+              Supplier
+              <span style="font-size:11px;color:#34d399;font-weight:600;opacity:.8;">Row ${si + 1}</span>
+              <span class="pair-amount">Credit: ${fmtAmount(sCredit)}</span>
+            </div>
+            <div class="pair-table-wrap">
+              <table class="data-table">
+                <thead><tr>${sH.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+                <tbody><tr>${cells(sRow, sDateIdx)}</tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="pair-side client-side">
+            <div class="pair-head client-head">
+              <span class="dot dot-blue"></span>
+              Client
+              <span style="font-size:11px;color:#818cf8;font-weight:600;opacity:.8;">Row ${ci + 1}</span>
+              <span class="pair-amount">Debit: ${fmtAmount(cDebit)}</span>
+            </div>
+            <div class="pair-table-wrap">
+              <table class="data-table">
+                <thead><tr>${cH.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+                <tbody><tr>${cells(cRow, cDateIdx)}</tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  return div;
+}
+
+// S→C Ledger: rows in SUPPLIER order, righthand side shows matched client row
+function buildLedgerViewSC() {
+  if (!lastMatchesSC || !lastCfgSC || !clientData || !supplierData) return;
+  const matchMap = new Map();
+  lastMatchesSC.forEach(m => matchMap.set(m.si, m));
+
+  const sH = supplierData.headers, cH = clientData.headers;
+  const sDateIdx = lastCfgSC.sDate, cDateIdx = lastCfgSC.cDate;
+
+  let h = `<table class="ledger-table">`;
+  h += `<thead>`;
+  h += `<tr class="group-header">`;
+  h += `<th class="th-supplier" colspan="${sH.length + 1}">SUPPLIER (original order)</th>`;
+  h += `<th class="th-status" colspan="1">STATUS</th>`;
+  h += `<th class="th-client" colspan="${cH.length + 1}">MATCHED CLIENT</th>`;
+  h += `</tr><tr>`;
+  h += `<th class="rn">#</th>`;
+  sH.forEach(col => { h += `<th class="sl">${esc(col)}</th>`; });
+  h += `<th class="st">Match</th>`;
+  h += `<th class="cl" style="opacity:1;color:#818cf8;">C.Row</th>`;
+  cH.forEach(col => { h += `<th class="cl">${esc(col)}</th>`; });
+  h += `</tr></thead><tbody>`;
+
+  supplierData.rows.forEach((sRow, si) => {
+    const match = matchMap.get(si);
+    const isMatched = !!match;
+    const rowCls = isMatched ? 'l-matched' : 'l-unmatched';
+
+    h += `<tr class="${rowCls}">`;
+    h += `<td class="row-num">${si + 1}</td>`;
+    sH.forEach((_, col) => {
+      const v = sRow[col];
+      h += `<td>${esc(col === sDateIdx ? fmtDateCell(v) : fmtCell(v))}</td>`;
+    });
+
+    if (isMatched) {
+      const diff = match.amtDiff;
+      h += `<td class="l-status-yes" style="text-align:center;">${diff === 0 ? '✓ Exact' : `✓ ±${fmtAmount(diff)}`}</td>`;
+      h += `<td class="row-num" style="color:#818cf8;font-weight:700;">${match.ci + 1}</td>`;
+      const cRow = match.cRow;
+      cH.forEach((_, col) => {
+        const v = cRow[col];
+        h += `<td>${esc(col === cDateIdx ? fmtDateCell(v) : fmtCell(v))}</td>`;
+      });
+    } else {
+      h += `<td class="l-status-no" style="text-align:center;">✘ No Match</td>`;
+      h += `<td class="l-empty">—</td>`;
+      cH.forEach(() => { h += `<td class="l-empty">—</td>`; });
+    }
+    h += `</tr>`;
+  });
+
+  h += `</tbody></table>`;
+  $('ledgerScrollSC').innerHTML = h;
+}
 
 /* ── Settings persistence (localStorage) ───────────────────────── */
 const SETTINGS_KEY = 'reconcile_studio_v1';
@@ -1440,11 +1879,11 @@ const SETTING_IDS = [
   'amountTolerance', 'dateTolerance'
 ];
 
-function saveSettings() {
+function saveSettings(silent = false) {
   const data = {};
   SETTING_IDS.forEach(id => { const el = $(id); if (el) data[id] = el.value; });
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(data)); } catch(e) {}
-  showToast('💾 Settings saved');
+  if (!silent) showToast('💾 Settings saved');
 }
 
 function loadSettings() {
