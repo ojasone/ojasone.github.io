@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reconcile Studio — Financial Reconciliation Tool</title>
+  <meta name="description" content="Professional financial reconciliation tool for matching debit/credit entries between client and supplier ledgers." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+/* ── Reset & Base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #0c0c1a;
+  color: #e2e8f0;
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #1a1a30; }
+::-webkit-scrollbar-thumb { background: #4338ca; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+
+/* ── Typography helpers ────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #818cf8 0%, #c084fc 55%, #f472b6 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.section-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+}
+
+/* ── Layout ────────────────────────────────────────────────── */
+.page-wrapper { width: 100%; margin: 0 auto; padding: 0 24px; box-sizing: border-box; }
+
+/* ── Header ────────────────────────────────────────────────── */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: rgba(12,12,26,.92);
+  backdrop-filter: blur(20px);
+}
+.header-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.logo-text { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.header-sub { font-size: 12px; color: #4a5568; }
+.btn-reset {
+  font-size: 12px; padding: 7px 16px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.1); background: transparent;
+  color: #94a3b8; cursor: pointer; transition: all .2s;
+  font-family: inherit;
+}
+.btn-reset:hover { color: #fff; border-color: #6366f1; background: rgba(99,102,241,.08); }
+
+/* ── Main ─────────────────────────────────────────────────── */
+main { padding: 48px 32px; width: 100%; box-sizing: border-box; }
+
+/* ── Hero ─────────────────────────────────────────────────── */
+.hero { text-align: center; margin-bottom: 56px; }
+.hero h1 { font-size: clamp(32px, 5vw, 52px); font-weight: 900; letter-spacing: -.03em; line-height: 1.1; margin-bottom: 16px; }
+.hero p { font-size: 16px; color: #94a3b8; max-width: 600px; margin: 0 auto; }
+
+/* ── Glass Card ───────────────────────────────────────────── */
+.card {
+  background: rgba(22,22,42,.9);
+  border: 1px solid rgba(99,102,241,.14);
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+}
+
+/* ── Two-col grid ─────────────────────────────────────────── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+/* Preview panels — always 50/50 across the full page width */
+.preview-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.preview-two-col .preview-card .table-scroll { max-height: 55vh; }
+@media (max-width: 900px) { .preview-two-col { grid-template-columns: 1fr; } }
+
+/* ── Upload Zone ──────────────────────────────────────────── */
+.upload-card { padding: 28px; }
+.upload-card-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-blue  { background: #818cf8; }
+.dot-green { background: #34d399; }
+.upload-card-title { font-size: 15px; font-weight: 700; color: #f1f5f9; }
+.upload-ext { font-size: 11px; color: #4a5568; margin-left: auto; }
+
+.drop-zone {
+  border: 2px dashed rgba(99,102,241,.35);
+  border-radius: 14px; padding: 36px 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  cursor: pointer; transition: all .22s ease;
+  text-align: center; min-height: 160px; justify-content: center;
+  background: rgba(99,102,241,.025);
+}
+.drop-zone:hover { border-color: #818cf8; background: rgba(99,102,241,.07); }
+.drop-zone.dragover { border-color: #a5b4fc; background: rgba(99,102,241,.12); }
+.drop-zone.has-file { border-style: solid; border-color: #4f46e5; background: rgba(99,102,241,.06); }
+.drop-zone.supplier-zone { border-color: rgba(52,211,153,.25); background: rgba(52,211,153,.02); }
+.drop-zone.supplier-zone:hover { border-color: #34d399; background: rgba(52,211,153,.07); }
+.drop-zone.supplier-zone.has-file { border-color: #059669; }
+
+.drop-icon {
+  width: 52px; height: 52px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.drop-icon.blue-bg  { background: rgba(99,102,241,.12); }
+.drop-icon.green-bg { background: rgba(52,211,153,.1); }
+
+.drop-title { font-size: 14px; font-weight: 600; color: #cbd5e1; }
+.drop-sub   { font-size: 12px; color: #64748b; margin-top: 2px; }
+.drop-file-name { font-size: 14px; font-weight: 700; color: #f1f5f9; }
+.drop-file-meta { font-size: 12px; color: #64748b; margin-top: 3px; }
+.drop-check { color: #34d399; margin-right: 6px; }
+
+/* ── Section heading ─────────────────────────────────────── */
+.section-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 17px; font-weight: 700; color: #f1f5f9;
+  margin-bottom: 20px;
+}
+.section-title svg { flex-shrink: 0; }
+
+/* ── Section spacing ─────────────────────────────────────── */
+.mt-10 { margin-top: 40px; }
+.mt-6  { margin-top: 24px; }
+.mt-4  { margin-top: 16px; }
+.mt-3  { margin-top: 12px; }
+
+/* ── Data Preview ────────────────────────────────────────── */
+.preview-card { padding: 22px; }
+.preview-card-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+}
+.preview-label { font-size: 13px; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px; }
+.preview-meta  { font-size: 11px; color: #4a5568; }
+
+/* ── Table ───────────────────────────────────────────────── */
+.table-scroll { overflow: auto; max-height: 320px; border-radius: 10px; }
+.data-table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.data-table th {
+  background: #1a1a32; color: #a5b4fc; font-weight: 600;
+  padding: 9px 14px; text-align: left; white-space: nowrap;
+  position: sticky; top: 0; z-index: 1;
+  border-bottom: 1px solid #2a2a48;
+}
+.data-table td {
+  padding: 7px 14px; white-space: nowrap;
+  border-bottom: 1px solid #1a1a30; color: #94a3b8;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: rgba(99,102,241,.06); }
+.row-num { color: #2d3a55 !important; font-size: 11px !important; }
+
+/* ── Config Panel ────────────────────────────────────────── */
+.config-card { padding: 32px; }
+.config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+@media (max-width: 700px) { .config-grid { grid-template-columns: 1fr; } }
+
+.col-group-title { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 16px; }
+.col-group-title.blue  { color: #818cf8; }
+.col-group-title.green { color: #34d399; }
+
+.col-inputs { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.form-field label { display: block; font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 6px; }
+.form-field input {
+  width: 100%; padding: 9px 12px; border-radius: 9px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: #1a1a32; color: #f1f5f9; font-size: 14px; font-family: inherit;
+  outline: none; transition: border-color .2s;
+  -moz-appearance: textfield; appearance: textfield;
+}
+.form-field input::-webkit-outer-spin-button,
+.form-field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.form-field input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+.col-hint { font-size: 11px; color: #2d3a55; margin-top: 8px; }
+
+/* ── Row-config bar inside upload card ─────────────────── */
+.row-start-bar {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  margin-top: 16px;
+}
+.row-cfg-cell {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-radius: 11px;
+  background: rgba(99,102,241,.06); border: 1px solid rgba(99,102,241,.14);
+}
+.row-cfg-cell.green-tint {
+  background: rgba(52,211,153,.05); border-color: rgba(52,211,153,.15);
+}
+.row-start-label {
+  font-size: 11px; font-weight: 600; color: #64748b; white-space: nowrap; line-height: 1.3;
+}
+.row-start-input {
+  width: 60px; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.1); background: #1a1a32;
+  color: #f1f5f9; font-size: 14px; font-family: inherit; text-align: center;
+  outline: none; transition: border-color .2s; -moz-appearance: textfield; appearance: textfield;
+  flex-shrink: 0; margin-left: auto;
+}
+.row-start-input::-webkit-outer-spin-button,
+.row-start-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.row-start-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+.row-start-hint { font-size: 10px; color: #2d3a55; margin-top: 3px; }
+
+.divider { border: none; border-top: 1px solid rgba(255,255,255,.06); margin: 32px 0; }
+
+.tolerance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 600px) { .tolerance-grid { grid-template-columns: 1fr; } }
+
+.tol-field label { display: block; font-size: 13px; font-weight: 600; color: #cbd5e1; margin-bottom: 8px; }
+.tol-field label span { font-weight: 400; color: #4a5568; }
+.tol-input-wrap { position: relative; }
+.tol-prefix {
+  position: absolute; left:13px; top:50%; transform:translateY(-50%);
+  font-size: 13px; color: #64748b; pointer-events: none;
+}
+.tol-input-wrap input {
+  width: 100%; padding: 11px 14px 11px 30px;
+  border-radius: 10px; border: 1px solid rgba(255,255,255,.1);
+  background: #1a1a32; color: #f1f5f9; font-size: 15px; font-family: inherit;
+  outline: none; transition: border-color .2s;
+  -moz-appearance: textfield; appearance: textfield;
+}
+.tol-input-wrap input::-webkit-outer-spin-button,
+.tol-input-wrap input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.tol-input-wrap input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+.tol-hint { font-size: 12px; color: #2d3a55; margin-top: 7px; }
+
+/* ── Reconcile Button ────────────────────────────────────── */
+.reconcile-wrap { display: flex; justify-content: center; margin-top: 36px; }
+.btn-reconcile {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 48px; border-radius: 16px; border: none;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%);
+  color: #fff; font-size: 16px; font-weight: 800; font-family: inherit;
+  cursor: pointer; letter-spacing: -.01em;
+  box-shadow: 0 8px 30px rgba(99,102,241,.35);
+  transition: transform .2s, box-shadow .2s;
+  animation: pulseGlow 2.5s ease-in-out infinite;
+  min-width: 220px; justify-content: center;
+}
+.btn-reconcile:hover { transform: scale(1.04); box-shadow: 0 12px 40px rgba(99,102,241,.5); }
+.btn-reconcile:active { transform: scale(.97); }
+.btn-reconcile:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+@keyframes pulseGlow {
+  0%,100% { box-shadow: 0 8px 30px rgba(99,102,241,.35); }
+  50%      { box-shadow: 0 8px 40px rgba(168,85,247,.55); }
+}
+
+/* ── Spinner ─────────────────────────────────────────────── */
+.spinner {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.2);
+  border-top-color: #fff;
+  animation: spin .65s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Summary Banner ──────────────────────────────────────── */
+.summary-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 32px;
+  padding: 24px 32px; border-radius: 18px;
+  background: rgba(22,22,42,.9); border: 1px solid rgba(99,102,241,.2);
+}
+.summary-stat-num { font-size: 36px; font-weight: 900; line-height: 1; }
+.summary-stat-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+.sep { width: 1px; background: rgba(255,255,255,.06); align-self: stretch; min-height: 40px; }
+.summary-row { display: flex; flex-direction: column; gap: 6px; }
+.summary-sub { font-size: 13px; color: #64748b; }
+.summary-sub strong { color: #cbd5e1; font-weight: 600; }
+.summary-sub .amber { color: #fbbf24; }
+.summary-sub .rose  { color: #f87171; }
+.progress-row { display: flex; align-items: center; gap: 10px; }
+.progress-track { height: 5px; border-radius: 99px; background: #1e1e38; min-width: 120px; overflow: hidden; }
+.progress-fill  { height: 5px; border-radius: 99px; background: linear-gradient(90deg, #4f46e5, #7c3aed); transition: width .6s ease; }
+.progress-pct   { font-size: 12px; font-weight: 700; color: #cbd5e1; }
+
+/* ── Example banner ──────────────────────────────────────── */
+.example-banner {
+  display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center;
+  margin-top: 20px; padding: 12px 20px; border-radius: 14px;
+  background: rgba(99,102,241,.07); border: 1px solid rgba(99,102,241,.18);
+  font-size: 13px;
+}
+.example-icon { font-size: 18px; }
+.example-text { color: #94a3b8; }
+.btn-example {
+  padding: 8px 20px; border-radius: 10px; border: 1px solid rgba(99,102,241,.4);
+  background: rgba(99,102,241,.14); color: #818cf8; font-size: 13px; font-weight: 700;
+  font-family: inherit; cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+.btn-example:hover { background: rgba(99,102,241,.28); color: #fff; border-color: #6366f1;
+  box-shadow: 0 4px 16px rgba(99,102,241,.25); }
+
+/* ── Toggle buttons row ──────────────────────────────────── */
+.toggle-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.btn-toggle {
+  font-size: 12px; padding: 8px 16px; border-radius: 9px;
+  border: 1px solid rgba(255,255,255,.1); background: transparent;
+  color: #94a3b8; cursor: pointer; font-family: inherit; transition: all .2s;
+}
+.btn-toggle:hover { color: #fff; border-color: #6366f1; }
+
+/* ── Unmatched Table card ────────────────────────────────── */
+.unmatched-card { padding: 20px; margin-top: 16px; }
+.unmatched-title { font-size: 13px; font-weight: 700; color: #e2e8f0; margin-bottom: 14px; }
+
+/* ── Ledger View ─────────────────────────────────────────── */
+.ledger-card { padding: 22px; margin-top: 16px; }
+.ledger-title { font-size: 13px; font-weight: 700; color: #e2e8f0; margin-bottom: 6px; }
+.ledger-subtitle { font-size: 11px; color: #2d3a55; margin-bottom: 16px; }
+.ledger-scroll { overflow: auto; max-height: 72vh; border-radius: 10px; }
+.ledger-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.ledger-table .th-client   { background: #181830; color: #818cf8; font-weight: 700;
+  padding: 8px 12px; text-align: center; border-bottom: 2px solid #4f46e5; white-space: nowrap; }
+.ledger-table .th-status   { background: #181830; color: #94a3b8; font-weight: 700;
+  padding: 8px 12px; text-align: center; border-bottom: 2px solid #334155; white-space: nowrap; }
+.ledger-table .th-supplier { background: #181830; color: #34d399; font-weight: 700;
+  padding: 8px 12px; text-align: center; border-bottom: 2px solid #059669; white-space: nowrap; }
+.ledger-table th.cl { background: #1a1a32; color: #6366f1; font-weight: 600;
+  padding: 7px 12px; text-align: left; white-space: nowrap; position: sticky; top: 30px; z-index: 1;
+  border-bottom: 1px solid #2a2a48; }
+.ledger-table th.sl { background: #1a1a32; color: #34d399; font-weight: 600;
+  padding: 7px 12px; text-align: left; white-space: nowrap; position: sticky; top: 30px; z-index: 1;
+  border-bottom: 1px solid #2a2a48; opacity: .7; }
+.ledger-table th.st { background: #1a1a32; color: #64748b; font-weight: 600;
+  padding: 7px 12px; text-align: center; white-space: nowrap; position: sticky; top: 30px; z-index: 1;
+  border-bottom: 1px solid #2a2a48; }
+.ledger-table th.rn { background: #1a1a32; color: #2d3a55;
+  padding: 7px 12px; position: sticky; top: 30px; z-index: 1; border-bottom: 1px solid #2a2a48; }
+.ledger-table .group-header th { position: sticky; top: 0; z-index: 2; }
+.ledger-table td { padding: 6px 12px; white-space: nowrap;
+  border-bottom: 1px solid #141428; color: #94a3b8; }
+.ledger-table .l-matched td   { background: rgba(79,70,229,.07); border-bottom-color: rgba(79,70,229,.1); }
+.ledger-table .l-unmatched td { background: rgba(245,158,11,.05); border-bottom-color: rgba(245,158,11,.1); }
+.ledger-table .l-matched   { border-left: 3px solid #4f46e5; }
+.ledger-table .l-unmatched { border-left: 3px solid #f59e0b; }
+.ledger-table .l-matched   .l-status-yes { background: rgba(52,211,153,.08); }
+.ledger-table .l-unmatched .l-status-no  { background: rgba(245,158,11,.1);  }
+.ledger-table tbody tr.l-matched:hover td   { background: rgba(79,70,229,.14); }
+.ledger-table tbody tr.l-unmatched:hover td { background: rgba(245,158,11,.10); }
+.l-status-yes { color: #34d399; font-weight: 700; white-space: nowrap; font-size: 11px; }
+.l-status-no  { color: #f59e0b; font-weight: 700; white-space: nowrap; font-size: 11px; }
+.l-empty      { color: #1e293b !important; }
+
+/* ── Match Cards ─────────────────────────────────────────── */
+.match-cards { display: flex; flex-direction: column; gap: 16px; }
+.match-card {
+  background: rgba(22,22,42,.9); border: 1px solid rgba(99,102,241,.14);
+  border-radius: 18px; overflow: hidden;
+  animation: slideUp .35s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes slideUp {
+  from { opacity:0; transform: translateY(14px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+.match-card-accent { display: flex; }
+.accent-bar { width: 4px; flex-shrink: 0; background: linear-gradient(180deg, #4f46e5, #7c3aed); }
+.match-card-body { flex: 1; padding: 20px 24px; }
+
+.match-card-header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin-bottom: 18px;
+}
+.match-idx { font-size: 12px; font-weight: 600; color: #334155; }
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 99px;
+}
+.badge-client   { background: rgba(99,102,241,.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,.25); }
+.badge-supplier { background: rgba(52,211,153,.1);  color: #6ee7b7; border: 1px solid rgba(52,211,153,.2); }
+.match-arrow { color: #4338ca; font-size: 16px; }
+.diff-label { margin-left: auto; font-size: 12px; font-weight: 700; }
+.diff-exact { color: #34d399; }
+.diff-close { color: #fbbf24; }
+
+.pair-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 800px) { .pair-grid { grid-template-columns: 1fr; } }
+
+.pair-side { border-radius: 10px; overflow: hidden; }
+.pair-side.client-side   { border: 1px solid rgba(79,70,229,.25); }
+.pair-side.supplier-side { border: 1px solid rgba(5,150,105,.25); }
+
+.pair-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; font-size: 12px; font-weight: 700;
+}
+.pair-head.client-head   { background: rgba(79,70,229,.1);  color: #a5b4fc; }
+.pair-head.supplier-head { background: rgba(5,150,105,.08); color: #6ee7b7; }
+.pair-head .dot { flex-shrink: 0; }
+.pair-amount { margin-left: auto; color: #f1f5f9; font-weight: 800; }
+.pair-table-wrap { overflow-x: auto; }
+
+/* ── No results ──────────────────────────────────────────── */
+.no-results {
+  text-align: center; padding: 64px 24px;
+  color: #374151;
+}
+.no-results .emoji { font-size: 48px; margin-bottom: 16px; }
+.no-results p { font-size: 15px; font-weight: 600; color: #4b5563; }
+.no-results small { font-size: 13px; margin-top: 6px; display: block; }
+
+/* ── Animations ──────────────────────────────────────────── */
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+.animate-in { animation: fadeIn .3s ease both; }
+
+/* ── Hidden ──────────────────────────────────────────────── */
+.hidden { display: none !important; }
+
+/* ── Footer ──────────────────────────────────────────────── */
+footer {
+  border-top: 1px solid rgba(255,255,255,.04);
+  text-align: center; padding: 32px 24px;
+  font-size: 12px; color: #1e293b; margin-top: 80px;
+}
+
+/* ── Theme toggle button ──────────────────────────────── */
+.btn-theme {
+  width: 36px; height: 36px; border-radius: 9px;
+  border: 1px solid rgba(255,255,255,.12); background: transparent;
+  color: #94a3b8; cursor: pointer; font-size: 17px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s; flex-shrink: 0;
+}
+.btn-theme:hover { border-color: #6366f1; background: rgba(99,102,241,.1); color: #e2e8f0; }
+
+/* ────────────────────────────────────────────────────
+   LIGHT THEME OVERRIDES
+────────────────────────────────────────────────── */
+html[data-theme="light"] body {
+  background: #f0f4f8; color: #0f172a;
+}
+html[data-theme="light"] ::-webkit-scrollbar-track { background: #e2e8f0; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #a5b4fc; }
+
+/* Header */
+html[data-theme="light"] .header {
+  background: rgba(255,255,255,.9); border-bottom-color: rgba(0,0,0,.1);
+  box-shadow: 0 1px 12px rgba(0,0,0,.07);
+}
+html[data-theme="light"] .header-sub { color: #64748b; }
+html[data-theme="light"] .btn-reset { border-color: rgba(0,0,0,.15); color: #475569; background: transparent; }
+html[data-theme="light"] .btn-reset:hover { color: #4f46e5; border-color: #6366f1; background: rgba(99,102,241,.06); }
+html[data-theme="light"] .btn-theme { border-color: rgba(0,0,0,.12); color: #64748b; }
+html[data-theme="light"] .btn-theme:hover { border-color: #6366f1; background: rgba(99,102,241,.06); color: #4f46e5; }
+
+/* Cards & general surfaces */
+html[data-theme="light"] .card {
+  background: #ffffff; border-color: rgba(0,0,0,.09);
+  box-shadow: 0 2px 16px rgba(0,0,0,.06);
+}
+html[data-theme="light"] .hero p { color: #475569; }
+html[data-theme="light"] .example-banner { background: rgba(99,102,241,.06); border-color: rgba(99,102,241,.18); }
+html[data-theme="light"] .example-text { color: #475569; }
+
+/* Upload cards */
+html[data-theme="light"] .upload-card-title { color: #0f172a; }
+html[data-theme="light"] .upload-ext { color: #94a3b8; }
+html[data-theme="light"] .drop-zone  { background: #f8fafc; border-color: rgba(99,102,241,.25); }
+html[data-theme="light"] .supplier-zone { border-color: rgba(52,211,153,.3); }
+html[data-theme="light"] .drop-zone.has-file { background: #f0fdf4; border-color: rgba(52,211,153,.4); }
+html[data-theme="light"] .drop-title { color: #374151; }
+html[data-theme="light"] .drop-sub   { color: #9ca3af; }
+html[data-theme="light"] .drop-file-name { color: #1e293b; }
+html[data-theme="light"] .drop-file-meta { color: #64748b; }
+html[data-theme="light"] .drop-icon  { background: rgba(99,102,241,.08) !important; }
+html[data-theme="light"] .green-bg   { background: rgba(52,211,153,.08) !important; }
+html[data-theme="light"] .row-cfg-cell { background: rgba(99,102,241,.05); border-color: rgba(99,102,241,.14); }
+html[data-theme="light"] .row-cfg-cell.green-tint { background: rgba(52,211,153,.05); border-color: rgba(52,211,153,.14); }
+html[data-theme="light"] .row-start-label { color: #475569; }
+html[data-theme="light"] .row-start-hint  { color: #94a3b8; }
+html[data-theme="light"] .row-start-input { background: #ffffff; border-color: rgba(0,0,0,.13); color: #0f172a; }
+
+/* Config panel */
+html[data-theme="light"] .section-title   { color: #1e293b; }
+html[data-theme="light"] .config-card-title{ color: #1e293b; }
+html[data-theme="light"] .config-group-label { color: #64748b; }
+html[data-theme="light"] .form-field label { color: #374151; }
+html[data-theme="light"] .form-field input { background: #ffffff; border-color: rgba(0,0,0,.13); color: #0f172a; }
+html[data-theme="light"] .col-hint  { color: #94a3b8; }
+html[data-theme="light"] .tol-field label { color: #374151; }
+html[data-theme="light"] .tol-input-wrap input { background: #ffffff; border-color: rgba(0,0,0,.13); color: #0f172a; }
+html[data-theme="light"] .tol-prefix { color: #94a3b8; }
+html[data-theme="light"] .tol-hint  { color: #94a3b8; }
+html[data-theme="light"] .divider   { border-top-color: rgba(0,0,0,.07); }
+
+/* Preview section */
+html[data-theme="light"] .preview-header { color: #1e293b; }
+html[data-theme="light"] .preview-count  { color: #64748b; }
+html[data-theme="light"] .table-scroll   { border-color: rgba(0,0,0,.07); }
+html[data-theme="light"] .data-table thead th { background: #f1f5f9; color: #374151; border-bottom-color: rgba(0,0,0,.1); }
+html[data-theme="light"] .data-table tbody td { color: #374151; border-bottom-color: rgba(0,0,0,.05); }
+html[data-theme="light"] .data-table tbody tr:hover td { background: #f8fafc; }
+html[data-theme="light"] .data-table .row-num { color: #94a3b8; }
+
+/* Summary & results */
+html[data-theme="light"] .summary-banner { background: #ffffff; border-color: rgba(99,102,241,.13); box-shadow: 0 2px 16px rgba(0,0,0,.06); }
+html[data-theme="light"] .summary-stat-label { color: #64748b; }
+html[data-theme="light"] .sep     { background: rgba(0,0,0,.07); }
+html[data-theme="light"] .summary-sub { color: #64748b; }
+html[data-theme="light"] .summary-sub strong { color: #1e293b; }
+html[data-theme="light"] .progress-track { background: #e2e8f0; }
+
+/* Toggle buttons */
+html[data-theme="light"] .btn-toggle { border-color: rgba(0,0,0,.11); color: #475569; background: #fff; }
+html[data-theme="light"] .btn-toggle:hover { color: #4f46e5; border-color: #6366f1; background: rgba(99,102,241,.05); }
+
+/* Unmatched */
+html[data-theme="light"] .unmatched-card { border-color: rgba(0,0,0,.07); }
+html[data-theme="light"] .unmatched-title { color: #1e293b; }
+
+/* Match cards */
+html[data-theme="light"] .match-card { background: #ffffff; border-color: rgba(99,102,241,.1); box-shadow: 0 2px 14px rgba(0,0,0,.06); }
+html[data-theme="light"] .match-card-body { background: #ffffff; }
+html[data-theme="light"] .match-idx   { color: #64748b; }
+html[data-theme="light"] .match-arrow { color: #94a3b8; }
+html[data-theme="light"] .diff-close  { color: #b45309; }
+html[data-theme="light"] .pair-head   { background: #f8fafc; border-bottom-color: rgba(0,0,0,.07); }
+html[data-theme="light"] .pair-amount { color: #475569; }
+html[data-theme="light"] .pair-table-wrap { border-color: rgba(0,0,0,.06); }
+html[data-theme="light"] .no-results  { color: #94a3b8; }
+html[data-theme="light"] .no-results p { color: #374151; }
+html[data-theme="light"] .no-results small { color: #94a3b8; }
+
+/* Ledger view */
+html[data-theme="light"] .ledger-card { border-color: rgba(0,0,0,.07); }
+html[data-theme="light"] .ledger-title    { color: #1e293b; }
+html[data-theme="light"] .ledger-subtitle { color: #64748b; }
+html[data-theme="light"] .ledger-table .th-client   { background: #eef2ff; color: #4338ca; border-bottom-color: #6366f1; }
+html[data-theme="light"] .ledger-table .th-status   { background: #f8fafc; color: #475569; border-bottom-color: #94a3b8; }
+html[data-theme="light"] .ledger-table .th-supplier { background: #ecfdf5; color: #059669; border-bottom-color: #34d399; }
+html[data-theme="light"] .ledger-table th.cl { background: #f5f3ff; color: #4f46e5; border-bottom-color: rgba(0,0,0,.07); }
+html[data-theme="light"] .ledger-table th.sl { background: #f0fdf4; color: #059669; border-bottom-color: rgba(0,0,0,.07); }
+html[data-theme="light"] .ledger-table th.st { background: #f8fafc; color: #64748b; border-bottom-color: rgba(0,0,0,.07); }
+html[data-theme="light"] .ledger-table th.rn { background: #f8fafc; border-bottom-color: rgba(0,0,0,.07); }
+html[data-theme="light"] .ledger-table td   { color: #374151; border-bottom-color: rgba(0,0,0,.04); }
+html[data-theme="light"] .ledger-table .l-matched td   { background: rgba(79,70,229,.04); border-bottom-color: rgba(79,70,229,.07); }
+html[data-theme="light"] .ledger-table .l-unmatched td { background: rgba(245,158,11,.04); border-bottom-color: rgba(245,158,11,.07); }
+html[data-theme="light"] .ledger-table tbody tr.l-matched:hover td   { background: rgba(79,70,229,.09); }
+html[data-theme="light"] .ledger-table tbody tr.l-unmatched:hover td { background: rgba(245,158,11,.08); }
+html[data-theme="light"] .l-empty { color: #d1d5db !important; }
+
+/* Footer */
+html[data-theme="light"] footer { color: #94a3b8; border-top-color: rgba(0,0,0,.06); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+          <path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M15 21l6-6m0 6l-6-6" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="logo-text gradient-text">Reconcile Studio</span>
+    </div>
+    <div class="header-right">
+      <span class="header-sub">Financial Ledger Matching</span>
+      <button id="themeToggleBtn" class="btn-theme" title="Toggle light / dark mode">🌙</button>
+      <button id="resetBtn" class="btn-reset">↺ Reset All</button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════ MAIN ═══════════════════════ -->
+<main>
+
+  <!-- Hero -->
+  <section class="hero">
+    <h1 class="gradient-text">Financial Reconciliation</h1>
+    <p>Upload your Client and Supplier Excel files, configure column mappings, and instantly match debit/credit entries with tolerance-based fuzzy matching.</p>
+    <div class="example-banner">
+      <span class="example-icon">📊</span>
+      <span class="example-text">New here? Explore the tool with a built-in 200-row sample dataset.</span>
+      <button id="loadExampleBtn" class="btn-example">Try Example Data &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ─── File Upload ─── -->
+  <div class="two-col">
+
+    <!-- Client -->
+    <div class="card upload-card">
+      <div class="upload-card-header">
+        <span class="dot dot-blue"></span>
+        <span class="upload-card-title">Client File</span>
+        <span class="upload-ext">.xlsx / .xls</span>
+      </div>
+      <div id="clientDropZone" class="drop-zone" onclick="document.getElementById('clientFileInput').click()">
+        <div class="drop-icon blue-bg">
+          <svg width="26" height="26" fill="none" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#818cf8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="14 2 14 8 20 8" stroke="#818cf8" stroke-width="1.6"/>
+            <line x1="16" y1="13" x2="8" y2="13" stroke="#818cf8" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="16" y1="17" x2="8" y2="17" stroke="#818cf8" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div id="clientFileInfo">
+          <div class="drop-title">Drop your Client Excel file here</div>
+          <div class="drop-sub">or click to browse</div>
+        </div>
+      </div>
+      <div class="row-start-bar">
+        <div class="row-cfg-cell">
+          <span class="row-start-label">Header row #<br><span class="row-start-hint">(0 = no header)</span></span>
+          <input id="clientHeaderRow" class="row-start-input" type="number" min="0" value="1" />
+        </div>
+        <div class="row-cfg-cell">
+          <span class="row-start-label">Data starts<br>from row #</span>
+          <input id="clientStartRow" class="row-start-input" type="number" min="1" value="2" />
+        </div>
+      </div>
+      <input type="file" id="clientFileInput" accept=".xlsx,.xls" style="display:none" />
+    </div>
+
+    <!-- Supplier -->
+    <div class="card upload-card">
+      <div class="upload-card-header">
+        <span class="dot dot-green"></span>
+        <span class="upload-card-title">Supplier File</span>
+        <span class="upload-ext">.xlsx / .xls</span>
+      </div>
+      <div id="supplierDropZone" class="drop-zone supplier-zone" onclick="document.getElementById('supplierFileInput').click()">
+        <div class="drop-icon green-bg">
+          <svg width="26" height="26" fill="none" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#34d399" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="14 2 14 8 20 8" stroke="#34d399" stroke-width="1.6"/>
+            <line x1="16" y1="13" x2="8" y2="13" stroke="#34d399" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="16" y1="17" x2="8" y2="17" stroke="#34d399" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div id="supplierFileInfo">
+          <div class="drop-title">Drop your Supplier Excel file here</div>
+          <div class="drop-sub">or click to browse</div>
+        </div>
+      </div>
+      <div class="row-start-bar">
+        <div class="row-cfg-cell green-tint">
+          <span class="row-start-label">Header row #<br><span class="row-start-hint">(0 = no header)</span></span>
+          <input id="supplierHeaderRow" class="row-start-input" type="number" min="0" value="1" />
+        </div>
+        <div class="row-cfg-cell green-tint">
+          <span class="row-start-label">Data starts<br>from row #</span>
+          <input id="supplierStartRow" class="row-start-input" type="number" min="1" value="2" />
+        </div>
+      </div>
+      <input type="file" id="supplierFileInput" accept=".xlsx,.xls" style="display:none" />
+    </div>
+
+  </div>
+
+  <!-- ─── Data Preview ─── -->
+  <section id="previewSection" class="hidden mt-10 animate-in">
+    <div class="section-title">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="3" stroke="#818cf8" stroke-width="1.8"/>
+        <path d="M3 9h18M9 9v12" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      Data Preview
+    </div>
+    <div class="preview-two-col">
+      <div id="clientPreview" class="card preview-card hidden">
+        <div class="preview-card-header">
+          <span class="preview-label"><span class="dot dot-blue"></span> Client Data</span>
+          <span class="preview-meta" id="clientRowCount"></span>
+        </div>
+        <div class="table-scroll">
+          <table id="clientTable" class="data-table"></table>
+        </div>
+      </div>
+      <div id="supplierPreview" class="card preview-card hidden">
+        <div class="preview-card-header">
+          <span class="preview-label"><span class="dot dot-green"></span> Supplier Data</span>
+          <span class="preview-meta" id="supplierRowCount"></span>
+        </div>
+        <div class="table-scroll">
+          <table id="supplierTable" class="data-table"></table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Configuration Panel ─── -->
+  <section id="configSection" class="hidden mt-10 animate-in">
+    <div class="card config-card">
+
+      <div class="section-title" style="margin-bottom: 28px;">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3" stroke="#818cf8" stroke-width="1.8"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#818cf8" stroke-width="1.8"/>
+        </svg>
+        Reconciliation Configuration
+      </div>
+
+      <div class="config-grid">
+        <!-- Client Columns -->
+        <div>
+          <div class="col-group-title blue">Client Columns</div>
+          <div class="col-inputs">
+            <div class="form-field">
+              <label>Date Col #</label>
+              <input id="clientDateCol" type="number" min="1" value="1" />
+            </div>
+            <div class="form-field">
+              <label>Debit Col #</label>
+              <input id="clientDebitCol" type="number" min="1" value="2" />
+            </div>
+            <div class="form-field">
+              <label>Credit Col #</label>
+              <input id="clientCreditCol" type="number" min="1" value="3" />
+            </div>
+          </div>
+          <div class="col-hint">Col A = 1, Col B = 2, etc.</div>
+        </div>
+
+        <!-- Supplier Columns -->
+        <div>
+          <div class="col-group-title green">Supplier Columns</div>
+          <div class="col-inputs">
+            <div class="form-field">
+              <label>Date Col #</label>
+              <input id="supplierDateCol" type="number" min="1" value="1" />
+            </div>
+            <div class="form-field">
+              <label>Credit Col #</label>
+              <input id="supplierCreditCol" type="number" min="1" value="3" />
+            </div>
+            <div class="form-field">
+              <label>Debit Col #</label>
+              <input id="supplierDebitCol" type="number" min="1" value="2" />
+            </div>
+          </div>
+          <div class="col-hint">Col A = 1, Col B = 2, etc.</div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- Tolerances -->
+      <div class="tolerance-grid">
+        <div class="tol-field">
+          <label>Amount Tolerance <span>(± currency units)</span></label>
+          <div class="tol-input-wrap">
+            <span class="tol-prefix">±</span>
+            <input id="amountTolerance" type="number" min="0" step="0.01" value="10" />
+          </div>
+          <div class="tol-hint">Max difference between Client Debit and Supplier Credit</div>
+        </div>
+        <div class="tol-field">
+          <label>Date Tolerance <span>(± days, 0 = skip date matching)</span></label>
+          <div class="tol-input-wrap">
+            <span class="tol-prefix">±</span>
+            <input id="dateTolerance" type="number" min="0" step="1" value="10" />
+          </div>
+          <div class="tol-hint">Set to 0 to ignore dates entirely</div>
+        </div>
+      </div>
+
+      <!-- Reconcile Button -->
+      <div class="reconcile-wrap">
+        <button id="reconcileBtn" class="btn-reconcile">
+          <span id="reconcileBtnContent">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;">
+              <path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M15 21l6-6m0 6l-6-6" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Reconcile Now
+          </span>
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─── Results ─── -->
+  <section id="resultsSection" class="hidden mt-10 animate-in">
+
+    <!-- Summary banner -->
+    <div id="summaryBanner" class="summary-banner"></div>
+
+    <!-- Toggle buttons -->
+    <div class="toggle-row">
+      <button id="showLedgerBtn" class="btn-toggle" style="border-color:rgba(99,102,241,.3);color:#818cf8;">
+        📊 Ledger View
+      </button>
+      <button id="showUnmatchedClientBtn" class="btn-toggle">Show Unmatched Client Rows</button>
+      <button id="showUnmatchedSupplierBtn" class="btn-toggle">Show Unmatched Supplier Rows</button>
+    </div>
+
+    <!-- Ledger View -->
+    <div id="ledgerSection" class="card ledger-card hidden animate-in">
+      <div class="ledger-title">Ledger View — All Client Rows in Original Order</div>
+      <div class="ledger-subtitle">Indigo left border = Matched &nbsp;·&nbsp; Amber left border = No Match &nbsp;·&nbsp; Supplier columns show the matched entry</div>
+      <div class="ledger-scroll" id="ledgerScroll"></div>
+    </div>
+
+    <div id="unmatchedClientSection" class="card unmatched-card hidden animate-in">
+      <div class="unmatched-title">Unmatched Client Rows</div>
+      <div class="table-scroll"><table id="unmatchedClientTable" class="data-table"></table></div>
+    </div>
+
+    <div id="unmatchedSupplierSection" class="card unmatched-card hidden animate-in">
+      <div class="unmatched-title">Unmatched Supplier Rows</div>
+      <div class="table-scroll"><table id="unmatchedSupplierTable" class="data-table"></table></div>
+    </div>
+
+    <!-- Matched pairs heading -->
+    <div class="section-title mt-10">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+        <path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Matched Pairs
+    </div>
+
+    <div id="matchCards" class="match-cards"></div>
+
+    <div id="noResults" class="no-results hidden">
+      <div class="emoji">🔍</div>
+      <p>No matches found with the current settings.</p>
+      <small>Try increasing the Amount or Date tolerance.</small>
+    </div>
+
+  </section>
+
+</main>
+
+<footer>Reconcile Studio — Financial Ledger Matching Tool</footer>
+
+<!-- ═══════════════════ JAVASCRIPT ════════════════ -->
+<script>
+/* ── State ── */
+let clientRawRows = null;   // all rows straight from xlsx (no slicing)
+let supplierRawRows = null;
+let clientData = null;      // { headers, rows } after sliceData()
+let supplierData = null;
+let lastMatches = null;     // saved after each reconcile for lazy ledger build
+let lastCfg    = null;
+
+/* ── Theme ── */
+// Restore theme before first paint (button not in DOM yet — only set attribute)
+(function () {
+  const saved = localStorage.getItem('reconcile_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+})();
+
+// Use getElementById directly so this works before $ is defined
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) {
+    btn.textContent = theme === 'light' ? '\ud83c\udf19' : '\u2600\ufe0f';
+    btn.title = theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+  }
+  localStorage.setItem('reconcile_theme', theme);
+}
+
+/* ── Helpers ── */
+const $ = id => document.getElementById(id);
+
+// Now $ is defined — sync button icon to match stored theme
+applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+
+// Slice raw rows into { headers, rows } using two independent settings:
+//   headerRow  (1-based): which row contains column names; 0 = no header (auto-generate Col 1 …)
+//   dataStartRow (1-based): from which row actual data rows begin
+function sliceData(allRows, headerRow, dataStartRow) {
+  const hr = Math.max(0, Math.floor(headerRow)  || 0);
+  const sr = Math.max(1, Math.floor(dataStartRow) || 1);
+  if (!allRows || !allRows.length) return { headers: [], rows: [] };
+
+  const numCols = Math.max(...allRows.slice(0, Math.min(10, allRows.length)).map(r => r.length));
+
+  let headers;
+  if (hr === 0) {
+    // No header row — auto-generate
+    headers = Array.from({ length: numCols }, (_, i) => `Col ${i + 1}`);
+  } else {
+    const hRow = allRows[hr - 1] || [];   // hr is 1-based
+    headers = Array.from({ length: numCols }, (_, i) =>
+      (hRow[i] !== '' && hRow[i] !== null && hRow[i] !== undefined) ? String(hRow[i]) : `Col ${i + 1}`);
+  }
+
+  const dataRows = allRows
+    .slice(sr - 1)   // sr is 1-based
+    .filter(r => r.some(c => c !== '' && c !== null && c !== undefined));
+
+  return { headers, rows: dataRows };
+}
+
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function parseAmount(v) {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v.replace(/[^0-9.\-]/g, ''));
+    return isNaN(n) ? null : n;
+  }
+  return null;
+}
+
+function fmtAmount(v) {
+  const n = parseAmount(v);
+  if (n === null) return '—';
+  return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtCell(v) {
+  if (v === null || v === undefined || v === '') return '';
+  return String(v);
+}
+
+// Format a value known to be in a date column.
+// Handles: Excel serial ints, common string date patterns, JS Date objects.
+function fmtDateCell(val) {
+  if (val === null || val === undefined || val === '') return '';
+
+  // Excel stores dates as integer serial numbers (days since 1900-01-00).
+  // Realistic financial-doc range: ~36526 (2000-01-01) to ~60000 (2064-04-05)
+  if (typeof val === 'number' && Number.isInteger(val) && val >= 25000 && val <= 70000) {
+    try {
+      const d = XLSX.SSF.parse_date_code(val);
+      if (d && d.y > 1900) {
+        const dd = String(d.d).padStart(2, '0');
+        const mm = String(d.m).padStart(2, '0');
+        return `${dd}/${mm}/${d.y}`;
+      }
+    } catch(e) {}
+  }
+
+  // String date — try to normalise to DD/MM/YYYY
+  if (typeof val === 'string' && val.trim()) {
+    const parsed = parseDate(val);
+    if (parsed) {
+      const dd = String(parsed.getDate()).padStart(2, '0');
+      const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+      const yyyy = parsed.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+  }
+
+  // JS Date object
+  if (val instanceof Date && !isNaN(val)) {
+    const dd = String(val.getDate()).padStart(2, '0');
+    const mm = String(val.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${val.getFullYear()}`;
+  }
+
+  return String(val);
+}
+
+function parseDate(val) {
+  if (!val && val !== 0) return null;
+  if (typeof val === 'number') {
+    try { const d = XLSX.SSF.parse_date_code(val); if (d) return new Date(d.y, d.m-1, d.d); } catch(e){}
+  }
+  if (val instanceof Date) return val;
+  if (typeof val === 'string') {
+    let m = val.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (m) { const yr = m[3].length===2 ? 2000+ +m[3] : +m[3]; return new Date(yr, +m[2]-1, +m[1]); }
+    m = val.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+    const d = new Date(val);
+    if (!isNaN(d)) return d;
+  }
+  return null;
+}
+
+function daysDiff(a, b) {
+  if (!a || !b) return Infinity;
+  return Math.abs((a.getTime() - b.getTime()) / 86400000);
+}
+
+/* ── Excel parsing — returns ALL rows (no slicing) ── */
+function parseExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: false });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+        // Keep all non-blank rows; caller will slice based on startRow
+        resolve(raw.filter(r => r.some(c => c !== '' && c !== null && c !== undefined)));
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsBinaryString(file);
+  });
+}
+
+/* ── Table renderer ── dateColIdx: 0-based index of the date column (-1 to skip) ── */
+function renderTable(tableEl, data, dateColIdx = -1) {
+  let h = '<thead><tr><th style="color:#2d3a55;">#</th>';
+  data.headers.forEach(hd => { h += `<th>${esc(hd)}</th>`; });
+  h += '</tr></thead><tbody>';
+  data.rows.forEach((row, i) => {
+    h += `<tr><td class="row-num">${i+1}</td>`;
+    data.headers.forEach((_, ci) => {
+      const val = row[ci];
+      const formatted = ci === dateColIdx ? fmtDateCell(val) : fmtCell(val);
+      h += `<td>${esc(formatted)}</td>`;
+    });
+    h += '</tr>';
+  });
+  h += '</tbody>';
+  tableEl.innerHTML = h;
+}
+
+/* ── Drop zones ── */
+function setupDropZone(zoneId, inputId, type) {
+  const zone = $(zoneId), input = $(inputId);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0], type); });
+  input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0], type); input.value=''; });
+}
+
+async function handleFile(file, type) {
+  const zone = $(type+'DropZone'), info = $(type+'FileInfo');
+  zone.classList.add('has-file');
+  info.innerHTML = `<div style="display:flex;align-items:center;gap:10px;justify-content:center;"><div class="spinner"></div><span style="font-size:13px;color:#94a3b8;">Parsing ${esc(file.name)}…</span></div>`;
+  try {
+    const allRows = await parseExcel(file);
+    if (type === 'client') clientRawRows = allRows; else supplierRawRows = allRows;
+    const headerRow  = parseInt($(type+'HeaderRow').value);
+    const startRow   = parseInt($(type+'StartRow').value) || 2;
+    const data = sliceData(allRows, headerRow, startRow);
+    if (type === 'client') clientData = data; else supplierData = data;
+    info.innerHTML = `
+      <div style="text-align:center;">
+        <div class="drop-file-name"><span class="drop-check">✓</span>${esc(file.name)}</div>
+        <div class="drop-file-meta">${allRows.length} total rows in file</div>
+      </div>`;
+    showPreview(type, data);
+    checkShowConfig();
+  } catch(err) {
+    zone.classList.remove('has-file');
+    info.innerHTML = `<div style="color:#f87171;font-size:13px;">⚠ Failed: ${esc(err.message)}</div>`;
+  }
+}
+
+function showPreview(type, data) {
+  const dateColIdx = parseInt($(type === 'client' ? 'clientDateCol' : 'supplierDateCol').value) - 1;
+  $(type+'Preview').classList.remove('hidden');
+  $(type+'RowCount').textContent = `${data.rows.length} data rows · ${data.headers.length} cols`;
+  renderTable($(type+'Table'), data, isNaN(dateColIdx) ? -1 : dateColIdx);
+  $('previewSection').classList.remove('hidden');
+}
+
+// Live-refresh preview when either row config changes
+function refreshPreview(type) {
+  const rawRows = type === 'client' ? clientRawRows : supplierRawRows;
+  if (!rawRows) return;
+  const headerRow = parseInt($(type+'HeaderRow').value);
+  const startRow  = parseInt($(type+'StartRow').value) || 2;
+  const data = sliceData(rawRows, headerRow, startRow);
+  if (type === 'client') clientData = data; else supplierData = data;
+  showPreview(type, data);
+}
+
+function checkShowConfig() {
+  if (clientData && supplierData) {
+    $('configSection').classList.remove('hidden');
+    setTimeout(() => $('configSection').scrollIntoView({ behavior:'smooth', block:'start' }), 100);
+  }
+}
+
+/* ── Reconcile ── */
+$('reconcileBtn').addEventListener('click', () => {
+  if (!clientData || !supplierData) { alert('Please upload both files first.'); return; }
+  $('reconcileBtn').disabled = true;
+  $('reconcileBtnContent').innerHTML = '<div class="spinner" style="display:inline-block;"></div> Reconciling…';
+  setTimeout(runReconcile, 60);
+});
+
+function runReconcile() {
+  // Re-slice with current row settings before reconciling
+  if (clientRawRows) {
+    clientData = sliceData(clientRawRows,
+      parseInt($('clientHeaderRow').value),
+      parseInt($('clientStartRow').value) || 2);
+  }
+  if (supplierRawRows) {
+    supplierData = sliceData(supplierRawRows,
+      parseInt($('supplierHeaderRow').value),
+      parseInt($('supplierStartRow').value) || 2);
+  }
+
+  const cfg = {
+    cDate:  +$('clientDateCol').value   - 1,
+    cDebit: +$('clientDebitCol').value  - 1,
+    cCredit:+$('clientCreditCol').value - 1,
+    sDate:  +$('supplierDateCol').value  - 1,
+    sCredit:+$('supplierCreditCol').value- 1,
+    sDebit: +$('supplierDebitCol').value - 1,
+    amtTol: parseFloat($('amountTolerance').value) || 0,
+    dateTol:parseFloat($('dateTolerance').value),
+  };
+
+  const clientRows = clientData.rows, supplierRows = supplierData.rows;
+  const supplierUsed = new Set(), clientMatched = new Set();
+  const matches = [];
+
+  clientRows.forEach((cRow, ci) => {
+    const cDebit = parseAmount(cRow[cfg.cDebit]);
+    if (cDebit === null || cDebit <= 0) return;
+    const cDate = parseDate(cRow[cfg.cDate]);
+    let bestMatch = null, bestDiff = Infinity;
+
+    supplierRows.forEach((sRow, si) => {
+      if (supplierUsed.has(si)) return;
+      const sCredit = parseAmount(sRow[cfg.sCredit]);
+      if (sCredit === null || sCredit <= 0) return;
+      const amtDiff = Math.abs(cDebit - sCredit);
+      if (amtDiff > cfg.amtTol) return;
+      if (cfg.dateTol > 0) {
+        const sDate = parseDate(sRow[cfg.sDate]);
+        if (cDate && sDate && daysDiff(cDate, sDate) > cfg.dateTol) return;
+      }
+      if (amtDiff < bestDiff) { bestDiff = amtDiff; bestMatch = { si, sRow, sCredit, amtDiff }; }
+    });
+
+    if (bestMatch) {
+      supplierUsed.add(bestMatch.si);
+      clientMatched.add(ci);
+      matches.push({ ci, cRow, cDebit, ...bestMatch });
+    }
+  });
+
+  const unmatchedClient   = clientRows.filter((_, i)   => !clientMatched.has(i));
+  const unmatchedSupplier = supplierRows.filter((_, i) => !supplierUsed.has(i));
+
+  renderResults(matches, unmatchedClient, unmatchedSupplier, cfg);
+
+  $('reconcileBtn').disabled = false;
+  $('reconcileBtnContent').innerHTML = `<svg width="18" height="18" fill="none" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;"><path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5" stroke="white" stroke-width="2.2" stroke-linecap="round"/><path d="M15 21l6-6m0 6l-6-6" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Reconcile Now`;
+}
+
+function renderResults(matches, unmatchedClient, unmatchedSupplier, cfg) {
+  // Persist for lazy ledger build
+  lastMatches = matches;
+  lastCfg    = cfg;
+  // Reset ledger if it was previously open
+  $('ledgerSection').classList.add('hidden');
+  $('ledgerScroll').innerHTML = '';
+  $('showLedgerBtn').textContent = '📊 Ledger View';
+  const totalC = clientData.rows.length, totalS = supplierData.rows.length;
+  const pct = totalC > 0 ? Math.round(matches.length / totalC * 100) : 0;
+
+  $('summaryBanner').innerHTML = `
+    <div>
+      <div class="summary-stat-num gradient-text">${matches.length}</div>
+      <div class="summary-stat-label">Matches Found</div>
+    </div>
+    <div class="sep"></div>
+    <div class="summary-row">
+      <div class="summary-sub"><strong>${totalC}</strong> Client rows scanned</div>
+      <div class="summary-sub"><strong>${totalS}</strong> Supplier rows scanned</div>
+    </div>
+    <div class="sep"></div>
+    <div>
+      <div class="progress-row" style="margin-bottom:6px;">
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <span class="progress-pct">${pct}%</span>
+      </div>
+      <div class="summary-sub">Match rate</div>
+    </div>
+    <div class="sep"></div>
+    <div class="summary-row">
+      <div class="summary-sub"><span class="amber">${unmatchedClient.length}</span> unmatched client rows</div>
+      <div class="summary-sub"><span class="rose">${unmatchedSupplier.length}</span> unmatched supplier rows</div>
+    </div>`;
+
+  // Unmatched tables — pass date col indices so dates render correctly
+  const cDateIdx = parseInt($('clientDateCol').value)   - 1;
+  const sDateIdx = parseInt($('supplierDateCol').value)  - 1;
+  buildUnmatchedTable($('unmatchedClientTable'),   clientData.headers,   unmatchedClient,   cDateIdx);
+  buildUnmatchedTable($('unmatchedSupplierTable'), supplierData.headers, unmatchedSupplier, sDateIdx);
+
+  // Match cards
+  const container = $('matchCards');
+  container.innerHTML = '';
+  if (matches.length === 0) {
+    $('noResults').classList.remove('hidden');
+  } else {
+    $('noResults').classList.add('hidden');
+    matches.forEach((m, idx) => {
+      container.appendChild(buildMatchCard(m, idx));
+    });
+  }
+
+  $('resultsSection').classList.remove('hidden');
+  setTimeout(() => $('resultsSection').scrollIntoView({ behavior:'smooth', block:'start' }), 80);
+}
+
+function buildMatchCard(m, idx) {
+  const { cRow, cDebit, sRow, sCredit, amtDiff } = m;
+  const diffLabel = amtDiff === 0 ? '✓ Exact Match' : `Diff: ${fmtAmount(amtDiff)}`;
+  const diffCls   = amtDiff === 0 ? 'diff-exact' : 'diff-close';
+  const cH = clientData.headers, sH = supplierData.headers;
+  const cDateIdx = parseInt($('clientDateCol').value)  - 1;
+  const sDateIdx = parseInt($('supplierDateCol').value) - 1;
+
+  const div = document.createElement('div');
+  div.className = 'match-card';
+  div.style.animationDelay = `${idx * 25}ms`;
+
+  const renderCells = (row, dateIdx) =>
+    row.map((v, ci) => `<td>${esc(ci === dateIdx ? fmtDateCell(v) : fmtCell(v))}</td>`).join('');
+
+  div.innerHTML = `
+    <div class="match-card-accent">
+      <div class="accent-bar"></div>
+      <div class="match-card-body">
+        <div class="match-card-header">
+          <span class="match-idx">#${idx+1}</span>
+          <span class="badge badge-client">CLIENT DEBIT</span>
+          <span class="match-arrow">→</span>
+          <span class="badge badge-supplier">SUPPLIER CREDIT</span>
+          <span class="diff-label ${diffCls}">${diffLabel}</span>
+        </div>
+        <div class="pair-grid">
+          <div class="pair-side client-side">
+            <div class="pair-head client-head">
+              <span class="dot dot-blue"></span>
+              Client
+              <span style="font-size:11px;color:#818cf8;font-weight:600;opacity:.8;">Row ${m.ci + 1}</span>
+              <span class="pair-amount">Debit: ${fmtAmount(cDebit)}</span>
+            </div>
+            <div class="pair-table-wrap">
+              <table class="data-table">
+                <thead><tr>${cH.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+                <tbody><tr>${renderCells(cRow, cDateIdx)}</tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="pair-side supplier-side">
+            <div class="pair-head supplier-head">
+              <span class="dot dot-green"></span>
+              Supplier
+              <span style="font-size:11px;color:#34d399;font-weight:600;opacity:.8;">Row ${m.si + 1}</span>
+              <span class="pair-amount">Credit: ${fmtAmount(sCredit)}</span>
+            </div>
+            <div class="pair-table-wrap">
+              <table class="data-table">
+                <thead><tr>${sH.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+                <tbody><tr>${renderCells(sRow, sDateIdx)}</tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  return div;
+}
+
+function buildUnmatchedTable(tableEl, headers, rows, dateColIdx = -1) {
+  if (!rows.length) {
+    tableEl.innerHTML = `<tbody><tr><td colspan="${headers.length+1}" style="text-align:center;padding:20px;color:#374151;">All rows matched ✓</td></tr></tbody>`;
+    return;
+  }
+  let h = `<thead><tr><th>#</th>${headers.map(hd=>`<th>${esc(hd)}</th>`).join('')}</tr></thead><tbody>`;
+  rows.forEach((row, i) => {
+    h += `<tr><td class="row-num">${i+1}</td>${headers.map((_,ci) => {
+      const val = row[ci];
+      return `<td>${esc(ci === dateColIdx ? fmtDateCell(val) : fmtCell(val))}</td>`;
+    }).join('')}</tr>`;
+  });
+  h += '</tbody>';
+  tableEl.innerHTML = h;
+}
+
+/* ── Ledger View Builder ── */
+function buildLedgerView() {
+  if (!lastMatches || !lastCfg || !clientData || !supplierData) return;
+
+  const matchMap = new Map();
+  lastMatches.forEach(m => matchMap.set(m.ci, m));
+
+  const cH = clientData.headers;
+  const sH = supplierData.headers;
+  const cDateIdx = lastCfg.cDate;
+  const sDateIdx = lastCfg.sDate;
+
+  // --- Group header row (Client | Status | Supplier) ---
+  let h = `<table class="ledger-table">`;
+  h += `<thead>`;
+  // Row 1: group labels
+  h += `<tr class="group-header">`;
+  h += `<th class="th-client" colspan="${cH.length + 1}">CLIENT (original order)</th>`;
+  h += `<th class="th-status" colspan="1">STATUS</th>`;
+  h += `<th class="th-supplier" colspan="${sH.length + 1}">MATCHED SUPPLIER</th>`;
+  h += `</tr>`;
+  // Row 2: column names
+  h += `<tr>`;
+  h += `<th class="rn">#</th>`;
+  cH.forEach(col => { h += `<th class="cl">${esc(col)}</th>`; });
+  h += `<th class="st">Match</th>`;
+  h += `<th class="sl" style="opacity:1;color:#34d399;">S.Row</th>`;   // supplier row #
+  sH.forEach(col => { h += `<th class="sl">${esc(col)}</th>`; });
+  h += `</tr>`;
+  h += `</thead><tbody>`;
+
+  clientData.rows.forEach((cRow, ci) => {
+    const match = matchMap.get(ci);
+    const isMatched = !!match;
+    const rowCls = isMatched ? 'l-matched' : 'l-unmatched';
+
+    h += `<tr class="${rowCls}">`;
+    h += `<td class="row-num">${ci + 1}</td>`;
+
+    // Client cells
+    cH.forEach((_, col) => {
+      const v = cRow[col];
+      h += `<td>${esc(col === cDateIdx ? fmtDateCell(v) : fmtCell(v))}</td>`;
+    });
+
+    // Status
+    if (isMatched) {
+      const diff = match.amtDiff;
+      h += `<td class="l-status-yes" style="text-align:center;">` +
+           (diff === 0 ? '✓ Exact' : `✓ ±${fmtAmount(diff)}`) + `</td>`;
+    } else {
+      h += `<td class="l-status-no" style="text-align:center;">✘ No Match</td>`;
+    }
+
+    // Supplier row number + cells
+    if (isMatched) {
+      const sRow = match.sRow;
+      h += `<td class="row-num" style="color:#34d399;font-weight:700;">${match.si + 1}</td>`;
+      sH.forEach((_, col) => {
+        const v = sRow[col];
+        h += `<td>${esc(col === sDateIdx ? fmtDateCell(v) : fmtCell(v))}</td>`;
+      });
+    } else {
+      h += `<td class="l-empty">—</td>`;            // S.Row empty
+      sH.forEach(() => { h += `<td class="l-empty">—</td>`; });
+    }
+
+    h += `</tr>`;
+  });
+
+  h += `</tbody></table>`;
+  $('ledgerScroll').innerHTML = h;
+}
+
+/* ── Toggle Ledger View ── */
+$('showLedgerBtn').addEventListener('click', () => {
+  const sec = $('ledgerSection');
+  const isHidden = sec.classList.contains('hidden');
+  if (isHidden) {
+    // Build on first open (lazy)
+    if (!$('ledgerScroll').innerHTML) buildLedgerView();
+    sec.classList.remove('hidden');
+    $('showLedgerBtn').textContent = '✕ Close Ledger View';
+    setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  } else {
+    sec.classList.add('hidden');
+    $('showLedgerBtn').textContent = '📊 Ledger View';
+  }
+});
+
+/* ── Toggle unmatched ── */
+$('showUnmatchedClientBtn').addEventListener('click', () => {
+  const s = $('unmatchedClientSection'); s.classList.toggle('hidden');
+  $('showUnmatchedClientBtn').textContent = s.classList.contains('hidden') ? 'Show Unmatched Client Rows' : 'Hide Unmatched Client Rows';
+});
+$('showUnmatchedSupplierBtn').addEventListener('click', () => {
+  const s = $('unmatchedSupplierSection'); s.classList.toggle('hidden');
+  $('showUnmatchedSupplierBtn').textContent = s.classList.contains('hidden') ? 'Show Unmatched Supplier Rows' : 'Hide Unmatched Supplier Rows';
+});
+
+/* ── Reset ── */
+$('resetBtn').addEventListener('click', () => {
+  clientData = supplierData = clientRawRows = supplierRawRows = null;
+  lastMatches = lastCfg = null;
+  ['previewSection','configSection','resultsSection','clientPreview','supplierPreview',
+   'unmatchedClientSection','unmatchedSupplierSection','ledgerSection'].forEach(id => $(id).classList.add('hidden'));
+  $('matchCards').innerHTML = '';
+  $('ledgerScroll').innerHTML = '';
+  $('noResults').classList.add('hidden');
+  ['clientDropZone','supplierDropZone'].forEach(id => $(id).classList.remove('has-file','dragover'));
+  $('clientFileInfo').innerHTML  = '<div class="drop-title">Drop your Client Excel file here</div><div class="drop-sub">or click to browse</div>';
+  $('supplierFileInfo').innerHTML = '<div class="drop-title">Drop your Supplier Excel file here</div><div class="drop-sub">or click to browse</div>';
+  // Reset per-file row configs to defaults (column & tolerance settings are kept)
+  $('clientHeaderRow').value = 1;  $('clientStartRow').value = 2;
+  $('supplierHeaderRow').value = 1; $('supplierStartRow').value = 2;
+  saveSettings();   // persist the reset row-config defaults
+  $('showLedgerBtn').textContent = '📊 Ledger View';
+  window.scrollTo({ top:0, behavior:'smooth' });
+});
+
+/* ── Live preview on row config change ── */
+$('clientHeaderRow').addEventListener('change',    () => { refreshPreview('client');   saveSettings(); });
+$('clientStartRow').addEventListener('change',     () => { refreshPreview('client');   saveSettings(); });
+$('supplierHeaderRow').addEventListener('change',  () => { refreshPreview('supplier'); saveSettings(); });
+$('supplierStartRow').addEventListener('change',   () => { refreshPreview('supplier'); saveSettings(); });
+
+/* ── Settings persistence (localStorage) ───────────────────────── */
+const SETTINGS_KEY = 'reconcile_studio_v1';
+const SETTING_IDS = [
+  'clientHeaderRow', 'clientStartRow',
+  'supplierHeaderRow', 'supplierStartRow',
+  'clientDateCol', 'clientDebitCol', 'clientCreditCol',
+  'supplierDateCol', 'supplierDebitCol', 'supplierCreditCol',
+  'amountTolerance', 'dateTolerance'
+];
+
+function saveSettings() {
+  const data = {};
+  SETTING_IDS.forEach(id => { const el = $(id); if (el) data[id] = el.value; });
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(data)); } catch(e) {}
+  showToast('💾 Settings saved');
+}
+
+function loadSettings() {
+  let data;
+  try { data = JSON.parse(localStorage.getItem(SETTINGS_KEY)); } catch(e) {}
+  if (!data) return;
+  SETTING_IDS.forEach(id => {
+    const el = $(id), val = data[id];
+    if (el && val !== undefined && val !== '') el.value = val;
+  });
+}
+
+// Toast helper — lightweight, no library needed
+let _toastTimer;
+function showToast(msg) {
+  let t = $('settingsToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'settingsToast';
+    t.style.cssText = [
+      'position:fixed;bottom:28px;right:28px;padding:10px 18px',
+      'border-radius:10px;background:rgba(30,30,56,.95);border:1px solid rgba(99,102,241,.3)',
+      'color:#818cf8;font-size:13px;font-family:inherit;font-weight:600',
+      'box-shadow:0 8px 24px rgba(0,0,0,.4);opacity:0',
+      'transition:opacity .25s;z-index:9999;pointer-events:none'
+    ].join(';');
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { t.style.opacity = '0'; }, 1800);
+}
+
+// Auto-save whenever any config field changes
+SETTING_IDS
+  .filter(id => !['clientHeaderRow','clientStartRow','supplierHeaderRow','supplierStartRow'].includes(id))
+  .forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener('change', saveSettings);
+  });
+
+// Restore settings on load
+loadSettings();
+
+$('themeToggleBtn').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+});
+
+/* ── Init drop zones ── */
+setupDropZone('clientDropZone',   'clientFileInput',   'client');
+setupDropZone('supplierDropZone', 'supplierFileInput', 'supplier');
+
+/* ────────────────────────────────────────────────
+   EXAMPLE DATASET  (200 rows per file, FY 2024-25)
+─────────────────────────────────────────────── */
+function generateExampleDataset() {
+  // Deterministic seeded PRNG (LCG) for reproducibility
+  let seed = 9876543;
+  const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const ri   = (lo, hi) => Math.floor(rand() * (hi - lo + 1)) + lo;
+  const pick  = arr => arr[ri(0, arr.length - 1)];
+  const fmt   = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const shift = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+  const round100 = v => Math.max(1000, Math.round(v / 100) * 100);
+
+  const parties = [
+    'Sharma & Co.', 'Raj Electronics Pvt Ltd', 'Mehta Enterprises',
+    'Singh Traders', 'Gupta Suppliers Ltd', 'Patel Industries',
+    'Kumar Exports', 'Verma Agencies', 'Agarwal Traders', 'Bose International',
+    'National Hardware', 'Sunrise Logistics', 'Phoenix Manufacturing',
+    'Delhi Auto Parts', 'Apex Components'
+  ];
+  const banks = ['HDFC Bank', 'ICICI Bank', 'SBI', 'Axis Bank', 'Kotak Bank'];
+  const base  = new Date(2024, 3, 1); // 01-Apr-2024
+
+  // --- 120 EXACT matches ---
+  const exact = Array.from({length: 120}, (_, i) => {
+    const d   = shift(base, ri(0, 364));
+    const amt = round100(5000 + rand() * 495000);
+    const pty = pick(parties);
+    const inv = `INV/24-25/${String(1001 + i).padStart(5,'0')}`;
+    const utr = `UTR${String(20240000 + i * 7).padStart(12,'0')}`;
+    return {
+      c: [fmt(d), amt, 0, `Payment to ${pty} – ${inv}`, inv, pick(banks)],
+      s: [fmt(d), amt, 0, `Received from ABC Corp – ${inv}`, utr, pty]
+    };
+  });
+
+  // --- 20 DATE-TOLERANCE matches (1-4 days offset) ---
+  const dateTol = Array.from({length: 20}, (_, i) => {
+    const d   = shift(base, ri(0, 360));
+    const amt = round100(5000 + rand() * 295000);
+    const pty = pick(parties);
+    const inv = `INV/24-25/${String(2001 + i).padStart(5,'0')}`;
+    const utr = `UTR${String(20241200 + i * 11).padStart(12,'0')}`;
+    const sDays = ri(1, 4);
+    return {
+      c: [fmt(d),             amt, 0, `Payment to ${pty} – ${inv}`, inv, pick(banks)],
+      s: [fmt(shift(d,sDays)), amt, 0, `Received from ABC Corp – ${inv}`, utr, pty]
+    };
+  });
+
+  // --- 10 AMOUNT-TOLERANCE matches (±₹10-45 off) ---
+  const amtTol = Array.from({length: 10}, (_, i) => {
+    const d    = shift(base, ri(0, 364));
+    const amt  = round100(10000 + rand() * 190000);
+    const diff = ri(1, 4) * 10 * (rand() > .5 ? 1 : -1);
+    const pty  = pick(parties);
+    const inv  = `INV/24-25/${String(3001 + i).padStart(5,'0')}`;
+    const utr  = `UTR${String(20242400 + i * 13).padStart(12,'0')}`;
+    return {
+      c: [fmt(d), amt,        0, `Payment to ${pty} – ${inv}`, inv, pick(banks)],
+      s: [fmt(d), amt + diff, 0, `Received from ABC Corp – ${inv}`, utr, pty]
+    };
+  });
+
+  const allPairs = [...exact, ...dateTol, ...amtTol]; // 150 pairs
+
+  // --- 50 UNMATCHED client rows ---
+  const uClient = Array.from({length: 50}, (_, i) => {
+    const d   = shift(base, ri(0, 364));
+    const amt = round100(5000 + rand() * 195000);
+    const pty = pick(parties);
+    const inv = `INV/24-25/${String(5001 + i).padStart(5,'0')}`;
+    return [fmt(d), amt, 0, `Payment to ${pty} – ${inv}`, inv, pick(banks)];
+  });
+
+  // --- 50 UNMATCHED supplier rows ---
+  const uSupplier = Array.from({length: 50}, (_, i) => {
+    const d   = shift(base, ri(0, 364));
+    const amt = round100(5000 + rand() * 195000);
+    const pty = pick(parties);
+    const utr = `UTR${String(30240000 + i * 17).padStart(12,'0')}`;
+    const ref = `MISC/24-25/${String(6001 + i).padStart(5,'0')}`;
+    return [fmt(d), amt, 0, `Received ${ref} – advance`, utr, pty];
+  });
+
+  // Build client raw rows (header + 200 data rows)
+  const cHeader  = ['Date', 'Debit Amount', 'Credit Amount', 'Narration', 'Invoice No', 'Bank'];
+  const cDataRows = [...allPairs.map(p => p.c), ...uClient];
+  const clientRaw = [cHeader, ...cDataRows];
+
+  // Build supplier raw rows (header + 200 data rows, shuffled)
+  const sHeader   = ['Date', 'Credit Amount', 'Debit Amount', 'Narration', 'UTR Reference', 'Received From'];
+  const sDataRows = [...allPairs.map(p => p.s), ...uSupplier];
+  // Fisher-Yates shuffle
+  for (let i = sDataRows.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [sDataRows[i], sDataRows[j]] = [sDataRows[j], sDataRows[i]];
+  }
+  const supplierRaw = [sHeader, ...sDataRows];
+
+  return { clientRaw, supplierRaw };
+}
+
+function loadExampleData() {
+  const btn = $('loadExampleBtn');
+  btn.textContent = 'Generating…';
+  btn.disabled = true;
+
+  setTimeout(() => {   // let the UI repaint first
+    const { clientRaw, supplierRaw } = generateExampleDataset();
+
+    // Store as raw rows (identical structure to parseExcel output)
+    clientRawRows   = clientRaw;
+    supplierRawRows = supplierRaw;
+
+    // Apply default sliceData (row 1 = header, data from row 2)
+    clientData   = sliceData(clientRaw,   1, 2);
+    supplierData = sliceData(supplierRaw, 1, 2);
+
+    // Update upload card info
+    ['client','supplier'].forEach(type => {
+      const rows   = type === 'client' ? clientRaw : supplierRaw;
+      const zone   = $(type + 'DropZone'), info = $(type + 'FileInfo');
+      zone.classList.add('has-file');
+      info.innerHTML = `
+        <div style="text-align:center;">
+          <div class="drop-file-name"><span class="drop-check">✓</span>Example ${type === 'client' ? 'Client' : 'Supplier'} Data</div>
+          <div class="drop-file-meta">${rows.length - 1} rows · ${rows[0].length} columns · FY 2024-25</div>
+        </div>`;
+      // Reset row config inputs
+      $(type + 'HeaderRow').value = 1;
+      $(type + 'StartRow').value  = 2;
+    });
+
+    // Pre-configure columns for the example schema
+    $('clientDateCol').value    = 1;
+    $('clientDebitCol').value   = 2;
+    $('clientCreditCol').value  = 3;   // Credit Amount col (zeroes for client debits)
+    $('supplierDateCol').value  = 1;
+    $('supplierCreditCol').value = 2;
+    $('supplierDebitCol').value  = 3;  // Debit Amount col (zeroes for supplier credits)
+    $('amountTolerance').value  = 50;
+    $('dateTolerance').value    = 5;
+    saveSettings();
+
+    // Show previews
+    showPreview('client',   clientData);
+    showPreview('supplier', supplierData);
+    checkShowConfig();
+
+    btn.textContent = '✓ Example Loaded';
+    btn.disabled = false;
+    btn.style.color = '#34d399';
+    btn.style.borderColor = 'rgba(52,211,153,.4)';
+  }, 40);
+}
+
+$('loadExampleBtn').addEventListener('click', loadExampleData);
+</script>
+</body>
+</html>
